@@ -962,22 +962,8 @@ footer {
   left: 57%;
   transform: rotate(12deg);
 }
-.soul.spawn {
-  animation: soul-life var(--lifetime) linear forwards;
-}
 .arena.is-running {
   cursor: crosshair;
-}
-@keyframes soul-life {
-  0% {
-    filter: brightness(1.2);
-  }
-  80% {
-    filter: brightness(0.85);
-  }
-  100% {
-    filter: brightness(0.5);
-  }
 }
 dialog {
   width: min(580px, calc(100% - 30px));
@@ -1520,6 +1506,80 @@ dialog .primary-button {
 footer {
   font-size: 8px;
   line-height: 1.7;
+}
+
+.situation-banner {
+  position: absolute;
+  top: 30px;
+  left: 28px;
+  right: 28px;
+  color: #c0d3be;
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-align: center;
+  text-transform: uppercase;
+  background: #18282e;
+  z-index: 1;
+}
+.target-context {
+  position: absolute;
+  top: 62px;
+  left: 32px;
+  right: 32px;
+  text-align: center;
+  pointer-events: none;
+}
+.target-context strong {
+  font: 500 27px var(--display);
+  color: #e8ddbd;
+}
+.target-context p {
+  margin: 8px auto;
+  max-width: 380px;
+  color: #a3b5aa;
+  font-size: 10px;
+  line-height: 1.6;
+}
+#hold-hint {
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: #a1afa5;
+}
+#hold-hint.is-held {
+  color: #c3e4ac;
+}
+.soul[data-kind="deny"] {
+  background: radial-gradient(
+    circle at 37% 32%,
+    #fff5da,
+    #edc58c 32%,
+    #c88c5c 67%,
+    #a76d49
+  );
+  border-color: #f0d5aa;
+  box-shadow:
+    0 0 23px #efc07e5c,
+    inset -3px -3px 8px #8c583d85;
+}
+.soul[data-kind="trooper"] {
+  background: #526978;
+  border: 2px solid #b3c4ce;
+  border-radius: 50%;
+  box-shadow: 0 0 17px #91b3c74d;
+}
+.soul[data-kind="trooper"]:before {
+  border-radius: 0;
+  border: 0;
+  background: linear-gradient(90deg, #e0a66e 0 22%, #40545d 22%);
+  height: 4px;
+  top: -12px;
+  bottom: auto;
+  left: 0;
+  right: 0;
+}
+.soul[data-kind="trooper"] span:before,
+.soul[data-kind="trooper"] span:after {
+  background: #e6d9b9;
 }
 @media (max-width: 760px) {
   #reference-keys {

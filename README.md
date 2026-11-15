@@ -35,15 +35,36 @@ npm run dev
 
 ### Modes
 
-| Mode           | What you practice                                                      |
-| -------------- | ---------------------------------------------------------------------- |
-| Keybind recall | Physical key recall for movement, combat, abilities, and active items. |
-| Soul practice  | 2D target acquisition. Click each soul before its timer expires.       |
-| Mixed training | Alternating keybind prompts and clickable souls.                       |
+| Mode            | What you practice                                                      |
+| --------------- | ---------------------------------------------------------------------- |
+| Keybind recall  | Physical key recall for movement, combat, abilities, and active items. |
+| Soul practice   | Acquire rising souls, alternating between secure and deny cues.        |
+| Lane situations | Contextual input sequences and simultaneous movement/aim practice.     |
 
 Rookie gives you larger targets and longer response windows. Regular and Sharpshooter progressively reduce target size and available time. Accuracy comes before speed.
 
 Aim practice uses your normal browser cursor. It does **not** reproduce Deadlock's sensitivity, 3D camera, recoil, movement, soul physics, or combat timing. Finish your warm-up in Deadlock's own sandbox for game-specific mechanics. Keyboard practice is intended for a physical keyboard; touch devices can use the aim drill and settings.
+
+### Lane Situations
+
+Choose **Lane situations** (the third mode), then select a situation or rotate through all six:
+
+| Situation              | Input rehearsal                                                       |
+| ---------------------- | --------------------------------------------------------------------- |
+| Last hit, then secure  | Click the low-health trooper target, then acquire its rising soul.    |
+| Contest the enemy soul | Deny the enemy's released soul, then move toward the indicated cover. |
+| Read the heavy melee   | Recognize a heavy-melee cue, find parry, then create space.           |
+| Dash into a jump       | Press dash, then jump; holding dash while jumping is accepted.        |
+| Cover, then reload     | Move toward the indicated cover, then reload.                         |
+| Move and contest       | Hold your strafe key while clicking the enemy's rising soul.          |
+
+Every situation uses your editable/imported bindings. In **Move and contest**, keep the movement key held until the shot; a shot without it counts as a miss. Pausing clears held keys, so press the movement key again after resuming. A timed-out step restarts the situation rather than teaching an incomplete sequence.
+
+These drills rehearse recognition, input order, and hand coordination. Their response windows are generous training settings, **not** Deadlock's parry windows, dash-jump timing, stamina, collision, damage, or hero-specific tactics. The cover and enemy cues are illustrative. Soul colors distinguish secure/deny instructions and their movement is approximate; neither is a claim of game-accurate visuals or physics. A soul shot follows a **ranged** last hit here, never a melee last hit.
+
+When your system's reduced-motion preference is enabled, targets remain still while the input and time-limit rules stay the same.
+
+The action identifiers were checked against the installed Deadlock control manifest. Background mechanics were cross-checked against the community wiki's [floating soul orbs](https://deadlock.wiki/Souls#Floating_orbs) and [movement](https://deadlock.wiki/Movement#Dash_Jump) explanations. Those are reference material, not a guarantee that this trainer tracks every game patch. The parry scenario assumes you are not carrying an urn, since the same game action also handles held-urn interactions.
 
 ## Your Keybinds
 
@@ -88,6 +109,22 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-Unit tests cover input normalization, binding imports, prompt selection, and statistics. Browser tests cover scoring, session completion, pause/resume, rebinding, imports, saved progress, storage failure, and desktop/mobile layouts.
+Unit tests cover input normalization, binding imports, scenario definitions, moving-target hit detection, held-key coordination, saved-data validation, and statistics. Browser tests cover scoring, session completion, pause/resume, lane sequences, custom movement bindings, rebinding, imports, saved progress, storage failure, and desktop/mobile layouts.
+
+## Code Layout
+
+- `index.html`: accessible page markup, separate from application logic.
+- `src/main.ts`: session lifecycle, DOM updates, and browser input handling.
+- `src/trainer.ts`: action catalog, physical-key normalization, binding parser, and statistics.
+- `src/drills.ts`: lane scenario definitions, held-key rules, and target geometry.
+- `src/storage.ts`: typed settings/history validation and local persistence.
+- `src/style.css`: responsive visuals and reduced-motion styling.
+- `src/*.test.ts` and `tests/trainer.spec.ts`: pure logic tests and browser regression tests.
+
+## Agent Access
+
+The public [AGENTS.md](AGENTS.md) records the authorized project work and narrow read-only Steam references. Machine-specific paths live in ignored `AGENTS.local.md`, with narrow machine-local Kilo rules in ignored `.kilo/kilo.json`. These rules do not disable editor/sandbox safeguards or mandatory Git confirmations and may need a new session to load.
+
+`.gitignore` excludes dependencies, build/test output, local machine paths/settings, secrets, browser authentication data, and raw imported game files. Do not force-add those files to GitHub.
 
 Project boundaries and guidance for coding agents are in [AGENTS.md](AGENTS.md). Steam and Deadlock files must remain read-only.

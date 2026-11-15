@@ -8,3 +8,32 @@ playwright-report/
 *.local
 *.log
 .DS_Store
+
+# Machine-specific paths, editor state, and local agent configuration.
+AGENTS.local.md
+/.kilo/kilo.json
+/.kilo/kilo.jsonc
+/.kilo/agent-manager.json
+/.kilo/worktrees/
+/.vscode/settings.json
+/.idea/
+*.code-workspace
+Thumbs.db
+
+# Secrets, browser authentication, and personal imported game files.
+.npmrc
+*.pem
+*.key
+*.p12
+*.pfx
+.auth/
+playwright/.auth/
+private/
+local-data/
+*.lst
+*.vcfg
+*.vdf
+*.acf
+*.dem
+*.dmp
+*.bak

@@ -54,7 +54,7 @@ export const ACTIONS: Action[] = [
     label: "Crouch / Slide",
     key: "CTRL",
     group: "movement",
-    tip: "Crouch or slide while moving.",
+    tip: "Crouch; sliding requires enough speed or a suitable slope.",
   },
   {
     id: "AbilityMelee",
@@ -68,7 +68,7 @@ export const ACTIONS: Action[] = [
     label: "Parry",
     key: "F",
     group: "combat",
-    tip: "Time your parry against an incoming melee attack.",
+    tip: "Parry an incoming melee attack. This key handles the urn when carried.",
   },
   {
     id: "Reload",

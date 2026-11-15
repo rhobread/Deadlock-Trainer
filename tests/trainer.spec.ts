@@ -1,5 +1,12 @@
 import { test, expect, type Page } from "@playwright/test";
 
+async function openTrainer(page: Page) {
+  await page.clock.install();
+  await page.goto("/");
+  // Advance timers explicitly so a slow test machine cannot expire a target mid-assertion.
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+}
+
 async function pressPrompt(page: Page) {
   const key = await page.locator("#key-hint kbd").innerText();
   const codes: Record<string, string> = {
@@ -12,12 +19,18 @@ async function pressPrompt(page: Page) {
   await page.keyboard.press(codes[key] || key);
 }
 
+async function shootTarget(page: Page) {
+  const box = await page.locator("#soul").boundingBox();
+  expect(box).not.toBeNull();
+  await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
+}
+
 test("setup, recall, pause, resume, results, and persistence", async ({
   page,
 }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await page.goto("/");
+  await openTrainer(page);
   await expect(
     page.getByRole("heading", { name: "Keybind recall." }),
   ).toBeVisible();
@@ -31,7 +44,7 @@ test("setup, recall, pause, resume, results, and persistence", async ({
     page.getByRole("heading", { name: "On your time." }),
   ).toBeVisible();
   const pausedTime = await page.locator("#stat-time").innerText();
-  await page.waitForTimeout(1200);
+  await page.clock.runFor(1200);
   await expect(page.locator("#stat-time")).toHaveText(pausedTime);
   await page.getByRole("button", { name: "Resume training" }).click();
   await pressPrompt(page);
@@ -48,8 +61,7 @@ test("setup, recall, pause, resume, results, and persistence", async ({
 });
 
 test("wrong keys, hidden hints, and automatic time limit", async ({ page }) => {
-  await page.clock.install();
-  await page.goto("/");
+  await openTrainer(page);
   await page.getByRole("button", { name: "30s", exact: true }).click();
   await page.getByRole("switch", { name: "Show key hints" }).uncheck();
   await page.getByRole("button", { name: "Start training" }).click();
@@ -61,33 +73,141 @@ test("wrong keys, hidden hints, and automatic time limit", async ({ page }) => {
   await expect(page.locator("#stat-time")).toHaveText("00:00");
 });
 
-test("aim scores targets and misses; mixed alternates input types", async ({
+test("aim scores targets and misses; lane practice requires movement while shooting", async ({
   page,
 }) => {
-  await page.goto("/");
+  await openTrainer(page);
   await page.locator('[data-mode="aim"]').click();
   await page.getByRole("button", { name: "Start training" }).click();
   await expect(page.locator("#soul")).toBeVisible();
   await page.locator("#arena").click({ position: { x: 8, y: 8 } });
   await expect(page.locator("#stat-accuracy")).toHaveText("0%");
-  await page.getByRole("button", { name: "Shoot soul target" }).click();
+  await shootTarget(page);
   await expect(page.locator("#stat-hits")).toHaveText("01");
   await expect(page.locator("#stat-accuracy")).toHaveText("50%");
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Finish session early" }).click();
   await page.locator('[data-mode="mixed"]').click();
+  await page
+    .getByLabel("LANE SITUATION", { exact: true })
+    .selectOption("strafe");
   await page.getByRole("button", { name: "Start training" }).click();
-  await pressPrompt(page);
+  await page.keyboard.down("KeyD");
   await expect(page.locator("#soul")).toBeVisible();
-  await page.getByRole("button", { name: "Shoot soul target" }).click();
+  await shootTarget(page);
+  await page.keyboard.up("KeyD");
   await expect(page.locator("#practice-screen")).toBeVisible();
   await expect(page.locator("#stat-hits")).toHaveText("02");
+});
+
+test("ranged last hit leads to a rising soul, with motion frozen during pause", async ({
+  page,
+}) => {
+  await openTrainer(page);
+  await page.locator('[data-mode="mixed"]').click();
+  await page
+    .getByLabel("LANE SITUATION", { exact: true })
+    .selectOption("secure");
+  await page.getByRole("button", { name: "Start training" }).click();
+  await expect(page.locator("#soul")).toHaveAttribute("data-kind", "trooper");
+  const trooperX = await page
+    .locator("#soul")
+    .evaluate((element) => parseFloat(element.style.left));
+  await shootTarget(page);
+  await expect(page.locator("#soul")).toHaveAttribute("data-kind", "secure");
+  const soulX = await page
+    .locator("#soul")
+    .evaluate((element) => parseFloat(element.style.left));
+  expect(Math.abs(soulX - trooperX)).toBeLessThan(2);
+  const initial = await page
+    .locator("#soul")
+    .evaluate((element) => parseFloat(element.style.top));
+  await page.clock.runFor(1000);
+  const moved = await page
+    .locator("#soul")
+    .evaluate((element) => parseFloat(element.style.top));
+  expect(moved).toBeLessThan(initial);
+  await page.screenshot({
+    path: `test-results/lane-${test.info().project.name}.png`,
+    fullPage: false,
+  });
+  await page.keyboard.press("Escape");
+  await page.clock.runFor(5000);
+  await page.getByRole("button", { name: "Resume training" }).click();
+  await page.clock.runFor(16);
+  const resumed = await page
+    .locator("#soul")
+    .evaluate((element) => parseFloat(element.style.top));
+  expect(Math.abs(resumed - moved)).toBeLessThan(2);
+  await shootTarget(page);
+  await expect(page.locator("#stat-hits")).toHaveText("02");
+});
+
+test("dash-jump accepts jump while dash is held and parry cues use real action keys", async ({
+  page,
+}) => {
+  await openTrainer(page);
+  await page.locator('[data-mode="mixed"]').click();
+  await page
+    .getByLabel("LANE SITUATION", { exact: true })
+    .selectOption("dash-jump");
+  await page.getByRole("button", { name: "Start training" }).click();
+  await page.keyboard.down("Shift");
+  await expect(page.locator("#prompt-label")).toHaveText("Jump / Mantle");
+  await page.keyboard.press("Space");
+  await page.keyboard.up("Shift");
+  await expect(page.locator("#stat-hits")).toHaveText("02");
+  await expect(page.locator("#stat-accuracy")).toHaveText("100%");
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Finish session early" }).click();
+  await page.getByRole("button", { name: "Back to setup" }).click();
+  await page
+    .getByLabel("LANE SITUATION", { exact: true })
+    .selectOption("parry");
+  await page.getByRole("button", { name: "Start training" }).click();
+  await expect(page.locator("#prompt-tip")).toContainText("heavy melee");
+  await page.keyboard.press("KeyF");
+  await expect(page.locator("#prompt-label")).toHaveText("Move Backward");
+  await page.keyboard.press("KeyS");
+  await expect(page.locator("#stat-hits")).toHaveText("02");
+});
+
+test("movement-and-aim respects custom bindings and clears held keys when paused", async ({
+  page,
+}) => {
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      "deadlock-trainer-v1",
+      JSON.stringify({
+        settings: {
+          mode: "mixed",
+          scenario: "strafe",
+          bindings: { MoveRight: "J" },
+        },
+      }),
+    ),
+  );
+  await openTrainer(page);
+  await page.getByRole("button", { name: "Start training" }).click();
+  await page.keyboard.down("KeyJ");
+  await expect(page.locator("#hold-hint")).toContainText("HOLD J");
+  await page.keyboard.press("Escape");
+  await page.keyboard.up("KeyJ");
+  await page.getByRole("button", { name: "Resume training" }).click();
+  await shootTarget(page);
+  await expect(page.locator("#stat-hits")).toHaveText("01");
+  await expect(page.locator("#feedback")).toContainText("KEEP J HELD");
+  await page.keyboard.down("KeyJ");
+  await shootTarget(page);
+  await page.keyboard.up("KeyJ");
+  await expect(page.locator("#stat-hits")).toHaveText("02");
+  await expect(page.locator("#stat-accuracy")).toHaveText("67%");
 });
 
 test("rebind, modifier combinations, local import, and reset", async ({
   page,
 }) => {
-  await page.goto("/");
+  await openTrainer(page);
   await page
     .getByRole("button", { name: "Edit keybinds", exact: true })
     .click();
@@ -131,7 +251,7 @@ test("rebind, modifier combinations, local import, and reset", async ({
 test("tab changes automatically pause and layout fits viewport", async ({
   page,
 }) => {
-  await page.goto("/");
+  await openTrainer(page);
   const width = await page.evaluate(() => ({
     content: document.documentElement.scrollWidth,
     viewport: innerWidth,
@@ -154,7 +274,7 @@ test("blocked localStorage does not break practice", async ({ page }) => {
       },
     });
   });
-  await page.goto("/");
+  await openTrainer(page);
   await expect(page.locator("#storage-note")).toContainText(
     "STORAGE UNAVAILABLE",
   );
@@ -182,7 +302,7 @@ test("modifier key practice does not count the modifier prefix as a mistake", as
       }),
     );
   });
-  await page.goto("/");
+  await openTrainer(page);
   await page.getByRole("button", { name: "Start training" }).click();
   await page.keyboard.press("Shift+KeyQ");
   await expect(page.locator("#stat-hits")).toHaveText("01");
@@ -209,7 +329,7 @@ test("invalid saved settings fall back safely and all assets are local", async (
       }),
     ),
   );
-  await page.goto("/");
+  await openTrainer(page);
   await expect(
     page.getByRole("heading", { name: "Keybind recall." }),
   ).toBeVisible();
@@ -224,8 +344,7 @@ test("invalid saved settings fall back safely and all assets are local", async (
 test("expired aim targets count as misses and reserved imports are rejected", async ({
   page,
 }) => {
-  await page.clock.install();
-  await page.goto("/");
+  await openTrainer(page);
   await page
     .getByRole("button", { name: "Edit keybinds", exact: true })
     .click();
@@ -248,7 +367,7 @@ test("expired aim targets count as misses and reserved imports are rejected", as
 test("compact navigation has accessible names and import is keyboard operable", async ({
   page,
 }) => {
-  await page.goto("/");
+  await openTrainer(page);
   await expect(
     page.getByRole("button", { name: "Soul practice", exact: true }),
   ).toBeVisible();
@@ -272,4 +391,65 @@ test("compact navigation has accessible names and import is keyboard operable", 
     buffer: Buffer.from("AbilityMelee { Key J }"),
   });
   await expect(page.locator("#binding-status")).toContainText("Imported 1");
+});
+
+test("reduced-motion preference keeps targets still without disabling scoring", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await openTrainer(page);
+  await page.locator('[data-mode="aim"]').click();
+  await page.getByRole("button", { name: "Start training" }).click();
+  const initial = await page
+    .locator("#soul")
+    .evaluate((element) => element.style.top);
+  await page.clock.runFor(1000);
+  await expect(page.locator("#soul")).toHaveCSS("top", initial);
+  await shootTarget(page);
+  await expect(page.locator("#stat-hits")).toHaveText("01");
+});
+
+test("dash-jump accepts custom Ctrl dash while the modifier remains held", async ({
+  page,
+}) => {
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      "deadlock-trainer-v1",
+      JSON.stringify({
+        settings: {
+          mode: "mixed",
+          scenario: "dash-jump",
+          bindings: { Roll: "CTRL" },
+        },
+      }),
+    ),
+  );
+  await openTrainer(page);
+  await page.getByRole("button", { name: "Start training" }).click();
+  await page.keyboard.down("Control");
+  await expect(page.locator("#prompt-label")).toHaveText("Jump / Mantle");
+  await page.keyboard.press("Space");
+  await page.keyboard.up("Control");
+  await expect(page.locator("#stat-hits")).toHaveText("02");
+  await expect(page.locator("#stat-accuracy")).toHaveText("100%");
+});
+
+test("a timed-out lane step restarts the situation and keeps its saved selection", async ({
+  page,
+}) => {
+  await openTrainer(page);
+  await page.locator('[data-mode="mixed"]').click();
+  await page
+    .getByLabel("LANE SITUATION", { exact: true })
+    .selectOption("reload");
+  await page.getByRole("button", { name: "Start training" }).click();
+  await page.keyboard.press("KeyA");
+  await expect(page.locator("#prompt-label")).toHaveText("Reload");
+  await page.clock.runFor(6500);
+  await expect(page.locator("#prompt-label")).toHaveText("Move Left");
+  await expect(page.locator("#stat-accuracy")).toHaveText("50%");
+  await page.reload();
+  await expect(page.getByLabel("LANE SITUATION", { exact: true })).toHaveValue(
+    "reload",
+  );
 });

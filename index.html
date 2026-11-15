@@ -12,7 +12,349 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <aside class="sidebar">
+        <a class="brand" href="./" aria-label="Deadlock Trainer home"
+          ><span class="brand-mark">D<span></span></span
+          ><span
+            >DEADLOCK<span class="brand-small">TRAINER / EST. 2026</span></span
+          ></a
+        >
+        <div class="nav-label">YOUR TRAINING GROUND</div>
+        <nav aria-label="Training modes">
+          <button
+            class="nav-item"
+            data-mode="recall"
+            aria-label="Keybind recall"
+          >
+            <span class="nav-icon" aria-hidden="true">⌘</span
+            ><span>Keybind recall<small>Build your muscle memory</small></span
+            ><span class="nav-number">01</span>
+          </button>
+          <button class="nav-item" data-mode="aim" aria-label="Soul practice">
+            <span class="nav-icon crosshair-icon" aria-hidden="true"></span
+            ><span>Soul practice<small>Secure and deny souls</small></span
+            ><span class="nav-number">02</span>
+          </button>
+          <button
+            class="nav-item"
+            data-mode="mixed"
+            aria-label="Mixed training"
+          >
+            <span class="nav-icon" aria-hidden="true">↯</span
+            ><span
+              >Lane situations<small
+                >Practice decisions and sequences</small
+              ></span
+            ><span class="nav-number">03</span>
+          </button>
+        </nav>
+        <div class="sidebar-note">
+          <span class="tiny-star">✳</span>
+          <h3>A little practice.<br />A lot more instinct.</h3>
+          <p>Five minutes here.<br />One less thing to think about in lane.</p>
+        </div>
+        <button
+          id="bindings-button"
+          class="bindings-button"
+          aria-label="Your keybinds"
+        >
+          <span aria-hidden="true">⚙</span> Your keybinds
+          <span aria-hidden="true">↗</span>
+        </button>
+        <div class="local-status"><i></i> LOCAL ONLY. ALWAYS.</div>
+      </aside>
+      <main>
+        <header class="topbar">
+          <span>THE WARM-UP ROOM</span
+          ><span class="topbar-right"><i></i> NO QUEUE. JUST YOU.</span>
+        </header>
+        <section class="page-heading">
+          <div>
+            <div id="mode-tag" class="eyebrow"></div>
+            <h1 id="mode-title"></h1>
+            <p id="mode-description"></p>
+          </div>
+          <div class="edition">
+            PRACTICE MAKES<br /><span>SECOND NATURE.</span>
+          </div>
+        </section>
+        <section class="workspace" aria-label="Practice workspace">
+          <div class="training-column">
+            <div class="arena-header">
+              <span
+                ><i></i> <span id="arena-label">READY WHEN YOU ARE</span></span
+              ><span><kbd>ESC</kbd> PAUSE</span>
+            </div>
+            <div
+              id="arena"
+              class="arena"
+              tabindex="-1"
+              aria-label="Training area"
+            >
+              <div class="arena-grid"></div>
+              <div class="arena-corner corner-tl"></div>
+              <div class="arena-corner corner-tr"></div>
+              <div class="arena-corner corner-bl"></div>
+              <div class="arena-corner corner-br"></div>
+              <div class="arena-coordinates">
+                DL // TRAINING FACILITY<br />SECTOR 07 - PERSONAL RANGE
+              </div>
+              <div id="idle-screen" class="arena-screen">
+                <div class="emblem"><span></span><b>✳</b></div>
+                <div class="arena-eyebrow">A GOOD MATCH STARTS HERE</div>
+                <h2 id="arena-subtitle"></h2>
+                <p id="arena-instructions"></p>
+                <button id="start-button" class="primary-button">
+                  Start training <span>↗</span></button
+                ><span class="arena-footnote"
+                  >SHORT SESSIONS. LASTING INSTINCTS.</span
+                >
+              </div>
+              <div id="situation-banner" class="situation-banner" hidden></div>
+              <div id="practice-screen" class="practice-screen" hidden>
+                <div class="prompt-category" id="prompt-category"></div>
+                <h2 id="prompt-label" aria-live="polite" role="status"></h2>
+                <div id="key-hint"></div>
+                <p id="prompt-tip"></p>
+              </div>
+              <div id="target-context" class="target-context" hidden>
+                <strong
+                  id="target-label"
+                  role="status"
+                  aria-live="polite"
+                ></strong>
+                <p id="target-tip"></p>
+                <span id="hold-hint"></span>
+              </div>
+              <button
+                id="soul"
+                class="soul"
+                aria-label="Shoot soul target"
+                hidden
+              >
+                <span></span>
+              </button>
+              <div
+                id="feedback"
+                class="feedback"
+                role="status"
+                aria-live="polite"
+              ></div>
+              <div id="pause-screen" class="arena-screen overlay" hidden>
+                <div class="arena-eyebrow">TAKE A BREATHER</div>
+                <h2>On your time.</h2>
+                <p>Your session is paused. Pick up where you left off.</p>
+                <button id="resume-button" class="primary-button">
+                  Resume training <span>↗</span></button
+                ><button id="end-button" class="text-button">
+                  Finish session early
+                </button>
+              </div>
+              <div id="result-screen" class="arena-screen overlay" hidden>
+                <div class="arena-eyebrow">ANOTHER REP IN THE BOOKS</div>
+                <h2>Nice work.</h2>
+                <p id="result-copy"></p>
+                <div class="result-grid">
+                  <div>
+                    <strong id="result-hits"></strong><span>CORRECT</span>
+                  </div>
+                  <div>
+                    <strong id="result-accuracy"></strong><span>ACCURACY</span>
+                  </div>
+                  <div>
+                    <strong id="result-median"></strong
+                    ><span>MEDIAN RESPONSE</span>
+                  </div>
+                </div>
+                <button id="again-button" class="primary-button">
+                  Go again <span>↗</span></button
+                ><button id="back-button" class="text-button">
+                  Back to setup
+                </button>
+              </div>
+              <div id="arena-bottom" class="arena-bottom">
+                <span>FOCUS ON ACCURACY. SPEED WILL FOLLOW.</span
+                ><span class="arena-reticle">+</span>
+              </div>
+            </div>
+            <div class="session-stats" aria-label="Live session statistics">
+              <div>
+                <span>TIME LEFT</span><strong id="stat-time">01:00</strong>
+              </div>
+              <div><span>CORRECT</span><strong id="stat-hits">00</strong></div>
+              <div>
+                <span>ACCURACY</span
+                ><strong id="stat-accuracy">--<small>%</small></strong>
+              </div>
+              <div><span>STREAK</span><strong id="stat-streak">00</strong></div>
+              <button
+                id="pause-button"
+                class="pause-control"
+                disabled
+                aria-label="Pause session"
+              >
+                Ⅱ
+              </button>
+            </div>
+            <div class="coach-note">
+              <span class="note-icon">↗</span>
+              <div>
+                <strong>Build the habit, not the high score.</strong>
+                <p id="coach-copy">
+                  Start with hints on. Once the keys feel familiar, switch them
+                  off and trust your hands.
+                </p>
+              </div>
+            </div>
+          </div>
+          <aside class="setup-panel">
+            <div class="panel-heading">
+              <h2>Make it your session.</h2>
+              <span>↙</span>
+            </div>
+            <p class="panel-intro">Small adjustments. Better practice.</p>
+            <fieldset id="settings-fields">
+              <div class="setting-block">
+                <label for="duration">SESSION LENGTH</label>
+                <div class="segmented" id="duration">
+                  <button data-duration="30">30s</button
+                  ><button data-duration="60">60s</button
+                  ><button data-duration="120">120s</button>
+                </div>
+              </div>
+              <div class="setting-block">
+                <label for="difficulty">DIFFICULTY</label
+                ><select id="difficulty">
+                  <option value="rookie">Rookie</option>
+                  <option value="regular">Regular</option>
+                  <option value="sharp">Sharpshooter</option>
+                </select>
+                <p id="difficulty-copy"></p>
+              </div>
+              <div class="setting-block" id="group-setting">
+                <label for="group">PRACTICE FOCUS</label
+                ><select id="group">
+                  <option value="all">All keybinds</option>
+                  <option value="movement">Movement</option>
+                  <option value="combat">Combat & utility</option>
+                  <option value="abilities">Abilities</option>
+                  <option value="items">Active items</option>
+                </select>
+              </div>
+              <div class="setting-block" id="scenario-setting" hidden>
+                <label for="scenario">LANE SITUATION</label
+                ><select id="scenario">
+                  <option value="all">Rotate all situations</option>
+                </select>
+                <p>
+                  Input order and coordination, not frame-perfect game timing.
+                </p>
+              </div>
+              <div class="hint-setting" id="hint-setting">
+                <div>
+                  <label for="hints">Training wheels</label>
+                  <p>Show the key with each prompt</p>
+                </div>
+                <input
+                  id="hints"
+                  type="checkbox"
+                  role="switch"
+                  aria-label="Show key hints"
+                />
+              </div>
+            </fieldset>
+            <div class="quick-reference" id="quick-reference">
+              <div class="reference-heading">
+                YOUR QUICK REFERENCE
+                <button id="edit-bindings" aria-label="Edit keybinds">
+                  EDIT ↗
+                </button>
+              </div>
+              <div id="reference-keys"></div>
+            </div>
+            <div class="personal-best">
+              <div class="eyebrow">YOUR LAST SESSION</div>
+              <div id="last-session">
+                <strong>A fresh start.</strong>
+                <p>Your progress starts with one session.</p>
+              </div>
+            </div>
+          </aside>
+        </section>
+        <section class="bottom-strip">
+          <div>
+            <span class="strip-number">01</span>
+            <div>
+              <strong>Learn the keys.</strong>
+              <p>Make the basics automatic.</p>
+            </div>
+          </div>
+          <span class="strip-line"></span>
+          <div>
+            <span class="strip-number">02</span>
+            <div>
+              <strong>Find your rhythm.</strong>
+              <p>Clean inputs over rushed ones.</p>
+            </div>
+          </div>
+          <span class="strip-line"></span>
+          <div>
+            <span class="strip-number">03</span>
+            <div>
+              <strong>Take it to the lane.</strong>
+              <p>Less thinking. More playing.</p>
+            </div>
+          </div>
+        </section>
+        <footer>
+          <span
+            >AN UNOFFICIAL DEADLOCK COMPANION. NOT AFFILIATED WITH VALVE.</span
+          ><span id="storage-note">YOUR SETTINGS STAY IN THIS BROWSER.</span>
+        </footer>
+      </main>
+      <dialog id="bindings-dialog" aria-labelledby="bindings-title">
+        <div class="dialog-header">
+          <div>
+            <div class="eyebrow">MAKE IT FAMILIAR</div>
+            <h2 id="bindings-title">Your keybinds.</h2>
+          </div>
+          <button
+            id="close-bindings"
+            class="close-button"
+            aria-label="Close keybind settings"
+          >
+            ×
+          </button>
+        </div>
+        <p>
+          Click a key, then press your preferred binding. Escape cancels.
+          Changes only affect this trainer.
+        </p>
+        <div class="import-row">
+          <button id="import-bindings" class="secondary-button">
+            Import Deadlock .lst ↗</button
+          ><input
+            type="file"
+            id="import-file"
+            accept=".lst,.txt"
+            hidden
+          /><button id="reset-bindings" class="text-button">
+            Reset defaults
+          </button>
+        </div>
+        <p class="import-help">
+          Choose citadelkeys_personal.lst from your Steam userdata / 1422450 /
+          remote / cfg folder. Read locally, never uploaded. Primary bindings
+          only; hero-specific overrides are not imported.
+        </p>
+        <div id="binding-status" role="status" aria-live="polite"></div>
+        <div id="bindings-list"></div>
+        <button id="done-bindings" class="primary-button">
+          All set <span>↗</span>
+        </button>
+      </dialog>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
