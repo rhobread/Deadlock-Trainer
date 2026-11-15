@@ -158,6 +158,9 @@ test("trainable bindings must be supported normalized keys or canonical combinat
     "CTRL+ALT+SHIFT+Q",
     "CTRL+ALT",
     "CTRL+ALT+SHIFT",
+    "MOUSE1",
+    "MOUSE2",
+    "SHIFT+MOUSE4",
   ])
     assert.equal(trainableBinding(value), true, value);
   for (const value of [
@@ -206,6 +209,33 @@ test("trainable bindings must be supported normalized keys or canonical combinat
       },
     }).settings.bindings,
     { Ability1: "1", Roll: "SHIFT" },
+  );
+});
+
+test("combat settings validate safety, mouse look, and new scenario selections", () => {
+  assert.equal(
+    load({
+      settings: { scenario: "dash-slide", safeCrouch: false, sensitivity: 1.5 },
+    }).settings.scenario,
+    "dash-slide",
+  );
+  assert.equal(
+    load({ settings: { safeCrouch: false } }).settings.safeCrouch,
+    false,
+  );
+  assert.equal(
+    load({ settings: { sensitivity: 1.5 } }).settings.sensitivity,
+    1.5,
+  );
+  assert.equal(load({ settings: { sensitivity: 99 } }).settings.sensitivity, 1);
+  assert.equal(
+    load({ settings: { safeCrouch: "false" } }).settings.safeCrouch,
+    true,
+  );
+  assert.deepEqual(
+    load({ settings: { bindings: { Attack: "MOUSE4", ADS: "ALT+MOUSE2" } } })
+      .settings.bindings,
+    { Attack: "MOUSE4", ADS: "ALT+MOUSE2" },
   );
 });
 

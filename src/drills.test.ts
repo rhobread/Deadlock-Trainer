@@ -18,21 +18,50 @@ describe("game situation drills", () => {
       assert.ok(scenario.steps.length >= 2);
       for (const step of scenario.steps) {
         if (step.kind === "key") assert.ok(ids.has(step.actionId));
-        else if (step.holdActionId) assert.ok(ids.has(step.holdActionId));
+        else if (step.kind === "input") {
+          for (const id of [...step.goal.actions, ...(step.goal.with || [])])
+            assert.ok(ids.has(id));
+        } else {
+          if (step.holdActionId) assert.ok(ids.has(step.holdActionId));
+          for (const id of step.heldActions || []) assert.ok(ids.has(id));
+        }
       }
     }
     const secure = chooseScenario("secure");
     assert.deepEqual(
-      secure.steps.map((step) =>
-        step.kind === "target" ? step.target : step.actionId,
-      ),
+      secure.steps.map((step) => (step.kind === "target" ? step.target : "")),
       ["trooper", "secure"],
     );
     assert.deepEqual(
       chooseScenario("dash-jump").steps.map((step) =>
-        step.kind === "key" ? step.actionId : "",
+        step.kind === "input" ? step.goal.actions[0] : "",
       ),
       ["Roll", "Mantle"],
+    );
+  });
+
+  it("models heavy commitment while held and release only as re-arming", () => {
+    const heavy = chooseScenario("heavy-melee");
+    assert.equal(
+      heavy.steps[0]?.kind === "input" && heavy.steps[0].goal.behavior,
+      "hold",
+    );
+    assert.equal(
+      heavy.steps[1]?.kind === "input" && heavy.steps[1].goal.behavior,
+      "release",
+    );
+    const slide = chooseScenario("dash-slide");
+    assert.equal(
+      slide.steps[0]?.kind === "input" && slide.steps[0].releasedActions?.[0],
+      "Crouch",
+    );
+    assert.deepEqual(
+      slide.steps[2]?.kind === "target" && slide.steps[2].heldActions,
+      ["MoveForward", "Crouch"],
+    );
+    assert.equal(
+      slide.steps[3]?.kind === "input" && slide.steps[3].goal.behavior,
+      "release",
     );
   });
 

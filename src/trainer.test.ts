@@ -27,7 +27,7 @@ function event(
 }
 
 describe("ACTIONS", () => {
-  it("contains exactly the observed keyboard defaults, without mouse actions", () => {
+  it("contains observed keyboard and mouse defaults", () => {
     assert.deepEqual(
       Object.fromEntries(ACTIONS.map(({ id, key }) => [id, key])),
       {
@@ -40,6 +40,8 @@ describe("ACTIONS", () => {
         Crouch: "CTRL",
         AbilityMelee: "Q",
         HeldItem: "F",
+        Attack: "MOUSE1",
+        ADS: "MOUSE2",
         Reload: "R",
         Interact: "E",
         Ability1: "1",
@@ -52,7 +54,7 @@ describe("ACTIONS", () => {
         Item4: "V",
       },
     );
-    assert.equal(ACTIONS.length, 19);
+    assert.equal(ACTIONS.length, 21);
     assert.equal(ACTIONS.find(({ id }) => id === "HeldItem")?.label, "Parry");
     for (const action of ACTIONS) {
       assert.ok(action.label && action.tip);
@@ -126,7 +128,10 @@ describe("keyFromEvent", () => {
       keyFromEvent(event("Unidentified", { key: "Unidentified" })),
       "",
     );
-    assert.equal(keyFromEvent(event("Mouse1", { ctrlKey: true })), "");
+    assert.equal(
+      keyFromEvent(event("Mouse1", { ctrlKey: true })),
+      "CTRL+MOUSE1",
+    );
   });
 });
 
@@ -139,6 +144,8 @@ describe("displayKey", () => {
       ["ALT", "Alt"],
       ["META", "Meta"],
       ["CTRL+SHIFT+Q", "Ctrl+Shift+Q"],
+      ["MOUSE1", "LMB"],
+      ["MOUSE2", "RMB"],
       ["ALT+1", "Alt+1"],
       ["ARROWLEFT", "Left"],
       ["PAGEUP", "Page Up"],
@@ -181,6 +188,7 @@ describe("parseBindings", () => {
         HeldItem: "F",
         Ability1: "ALT+1",
         Item1: "SHIFT+Z",
+        Attack: "MOUSE1",
       },
     );
   });
@@ -223,7 +231,7 @@ describe("parseBindings", () => {
     assert.deepEqual(
       parseBindings(`
       MoveForward { Key NONE Key2 UP Modifier2 CTRL }
-      MoveBackwards { Key MOUSE2 Key2 S }
+      MoveBackwards { Key JOY2 Key2 S }
       MoveLeft { Key A Key2 LEFT Modifier2 ALT }
       MoveRight { Key NONE Key2 NONE }
       Reload { Key R Modifier INVALID Key2 F5 Modifier2 META }
@@ -237,6 +245,7 @@ describe("parseBindings", () => {
         MoveLeft: "A",
         Reload: "META+F5",
         Mantle: "SPACE",
+        Attack: "Q",
       },
     );
   });
@@ -266,16 +275,16 @@ describe("parseBindings", () => {
       "  \n ",
       "// only a comment",
       '"KeyBindings" {}',
-      "Attack { Key MOUSE1 }",
+      "UnknownAction { Key MOUSE1 }",
       "MoveForward { Key NONE }",
-      "MoveForward { Key MOUSE1 Key2 JOY1 }",
+      "MoveForward { Key MOUSE9 Key2 JOY1 }",
       "MoveForward { Key MadeUpKey }",
       "MoveForward { Key W Modifier MOUSE1 }",
       "Unknown { Key W }",
     ])
       assert.throws(
         () => parseBindings(source),
-        /No supported valid keyboard bindings/,
+        /No supported valid input bindings/,
       );
   });
 

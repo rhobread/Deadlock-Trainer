@@ -4,7 +4,7 @@ A standalone browser warm-up app for new Deadlock players. Train physical key re
 
 ## Stack and Commands
 
-- TypeScript, Vite, native DOM and CSS. No backend, analytics, or accounts.
+- TypeScript, Vite, native DOM/CSS, and Three.js for the original practice range. No backend, analytics, or accounts.
 - `npm install` installs dependencies; `npm run dev` serves locally.
 - `npm run build` type-checks and builds; `npm test` runs logic tests; `npm run test:e2e` runs browser tests.
 - Keep changes small and accessible. Preserve keyboard focus, responsive layouts, reduced-motion support, and local-only data.
@@ -28,8 +28,13 @@ A standalone browser warm-up app for new Deadlock players. Train physical key re
 ## Behavior
 
 - Settings, bindings, and recent session summaries live only in browser localStorage.
-- Aim training is 2D target acquisition, not a promise of matched in-game sensitivity, recoil, movement, or mechanics.
+- Aim training uses a simplified third-person range with a 2D fallback, not matched in-game sensitivity, recoil, movement, or mechanics.
 - Lane situations rehearse real action mappings and input order, not exact parry/dash timing, stamina, collision, damage, or hero-specific tactics. Keep scenario definitions separate from rendering and saved-data validation.
 - Ranged last-hit drills may lead into a soul shot; do not teach a soul shot after a melee last hit. Soul colors and motion are training cues, not game-accurate visuals or physics.
+- Heavy melee commits while held; release only re-arms a later input. Light-tap grading on release is a trainer duration check, not a claim that the game fires light attacks on release. Label training thresholds and patch-sensitive dash-jump cues clearly.
+- Track physical input sources and continuous overlap, not OS key-repeat counts. Mouse chords require every button edge; pointerdown/pointerup alone miss intermediate mouse presses/releases. Keep browser tests for movement + RMB + LMB.
+- Browser-safe crouch is an explicit trainer-only Caps Lock override for Ctrl-based crouch in Combat range. Preserve imported bindings and never modify the actual game. Fullscreen/Keyboard Lock cannot guarantee capture of OS/browser shortcuts; release capture on pause, blur, or finish.
+- Range artwork is original primitive geometry; do not extract or commit game assets. Mesh raycasts must match visible targets. Preserve no-WebGL fallback and reduced-motion support.
+- Current urn references say carriers cannot parry or manually drop the urn; do not infer live mechanics from legacy `Parry/Drop Urn` labels. Record sources and research limitations in README.
 - Escape pauses; leaving the page pauses automatically. No global keyboard listeners outside active practice or explicit rebinding.
 - Validate with unit tests, a production build, and browser interaction tests before delivery.

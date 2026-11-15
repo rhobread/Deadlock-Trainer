@@ -6,6 +6,7 @@ import "@fontsource/dm-sans/latin-500.css";
 import "@fontsource/dm-sans/latin-600.css";
 import "@fontsource/dm-sans/latin-700.css";
 import "./style.css";
+import "./combat.css";
 import {
   ACTIONS,
   accuracy,
@@ -18,10 +19,8 @@ import {
 } from "./trainer";
 import {
   SCENARIOS,
-  bindingIsHeld,
   chooseScenario,
   matchesAction,
-  physicalKey,
   targetContains,
   targetPosition,
   type DrillStep,
@@ -37,6 +36,8 @@ import {
   type Result,
   type Settings,
 } from "./storage";
+import { GoalEvaluator, InputState, type InputEdge } from "./input";
+import { PracticeRange } from "./range";
 const MODES = {
   recall: {
     title: "Keybind recall",
@@ -53,10 +54,10 @@ const MODES = {
     tag: "02 / THE PRECISION",
   },
   mixed: {
-    title: "Lane situations",
+    title: "Combat range",
     subtitle: "Bring it all together.",
     description:
-      "Read a lane situation, then make the inputs: parry, dash-jump, reload behind cover, or contest a soul.",
+      "Hold, tap, release and overlap your inputs in a third-person practice lane: melee, dash, crouch, zoom and fire.",
     tag: "03 / THE COMBINATION",
   },
 };
@@ -84,13 +85,25 @@ let streak = 0;
 let reactions: number[] = [];
 let current: Action | null = null;
 let target: Target | null = null;
-let task: "key" | "target" = "key";
+let task: "key" | "target" | "input" = "key";
 let taskIndex = 0;
 let scenario: Scenario | null = null;
 let scenarioStep = 0;
 let previousScenarioId: string | undefined;
 let step: DrillStep | null = null;
-const heldKeys = new Set<string>();
+const input = new InputState();
+const evaluator = new GoalEvaluator((actionId) => actionBinding(actionId));
+const range = new PracticeRange(el<HTMLCanvasElement>("range-canvas"));
+let goalProgress = 0;
+let activeTime = 0;
+let lastFrameTime = 0;
+let ammo = 12;
+let reloadingUntil = 0;
+let nextShotAt = 0;
+let meleeFlashUntil = 0;
+let parryFlashUntil = 0;
+let pointer = { x: 0, y: 0 };
+let captureTransition = false;
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 let frame = 0;
 let feedbackTimer = 0;
@@ -113,8 +126,25 @@ function save() {
       : "STORAGE UNAVAILABLE. PROGRESS IS TEMPORARY.",
   );
 }
-function actions() {
-  return ACTIONS.map((a) => ({ ...a, key: settings.bindings[a.id] || a.key }));
+function actions(useSafety = true) {
+  return ACTIONS.map((a) => {
+    let key = settings.bindings[a.id] || a.key;
+    if (
+      useSafety &&
+      settings.mode === "mixed" &&
+      settings.safeCrouch &&
+      a.id === "Crouch" &&
+      key.split("+").includes("CTRL")
+    )
+      key = "CAPSLOCK";
+    return { ...a, key };
+  });
+}
+function actionBinding(id: string) {
+  return actions().find((action) => action.id === id)?.key || "";
+}
+function actionHeld(id: string) {
+  return input.held(actionBinding(id));
 }
 function formatTime(ms: number) {
   const seconds = Math.max(0, Math.ceil(ms / 1000));
@@ -127,6 +157,7 @@ function stats() {
   text("stat-hits", String(hits).padStart(2, "0"));
   text("stat-accuracy", attempts ? `${accuracy(hits, attempts)}%` : "--%");
   text("stat-streak", String(streak).padStart(2, "0"));
+  updateHud();
 }
 function updateSetup() {
   const mode = MODES[settings.mode];
@@ -139,7 +170,7 @@ function updateSetup() {
     settings.mode === "aim"
       ? "Souls rise after a ranged last hit.\nFind them, then click before they fade."
       : settings.mode === "mixed"
-        ? "Read the situation. Rehearse the inputs in order.\nGame timing and movement belong in the sandbox."
+        ? "A third-person range for actual input overlap.\nHold melee. Keep moving. Crouch, aim and fire together."
         : "An action appears. You press the key.\nSimple reps for a sharper game.",
   );
   document.querySelectorAll<HTMLButtonElement>("[data-mode]").forEach((b) => {
@@ -161,18 +192,28 @@ function updateSetup() {
   el("group-setting").hidden = settings.mode !== "recall";
   el("scenario-setting").hidden = settings.mode !== "mixed";
   el("hint-setting").hidden = settings.mode === "aim";
+  el("combat-settings").hidden = settings.mode !== "mixed";
+  el<HTMLInputElement>("safe-crouch").checked = settings.safeCrouch;
+  el<HTMLInputElement>("sensitivity").value = String(settings.sensitivity);
   text(
     "difficulty-copy",
-    settings.difficulty === "rookie"
-      ? "Bigger targets. More time to find your feet."
-      : settings.difficulty === "regular"
-        ? "Smaller targets. A little more urgency."
-        : "Tiny targets. Quick decisions. Stay sharp.",
+    settings.mode === "mixed"
+      ? {
+          rookie: "Assisted blue jump cue: 300-900 ms. Generous response time.",
+          regular: "Blue jump cue: 300-700 ms. Smaller targets.",
+          sharp:
+            "Blue jump cue: 300-550 ms, based on the June 30 reference. Not live-game validation.",
+        }[settings.difficulty]
+      : settings.difficulty === "rookie"
+        ? "Bigger targets. More time to find your feet."
+        : settings.difficulty === "regular"
+          ? "Smaller targets. A little more urgency."
+          : "Tiny targets. Quick decisions. Stay sharp.",
   );
   text(
     "coach-copy",
     settings.mode === "mixed"
-      ? "Situations rehearse input order and hand coordination. They do not simulate parry windows, collision, stamina, or a hero's abilities. Finish in the game sandbox."
+      ? "Heavy melee completes while held, not on release. The third-person view and hold timings are training models, not Deadlock's engine. Safe crouch uses CapsLock instead of Ctrl in combat drills only."
       : settings.mode === "aim"
         ? "A 2D mouse warm-up, not an in-game sensitivity match. Use your usual mouse DPI; finish with a few minutes in the sandbox."
         : "Start with hints on. Once the keys feel familiar, switch them off and trust your hands.",
@@ -209,6 +250,7 @@ function updateSetup() {
     ? `${last.hits} correct / ${last.median || "--"} ms median response`
     : "Your progress starts with one session.";
   el("last-session").append(strong, desc);
+  renderHudBindings();
   if (phase === "idle") {
     remaining = settings.duration * 1000;
     stats();
@@ -219,12 +261,15 @@ function showPhase() {
   el("idle-screen").hidden = phase !== "idle";
   el("pause-screen").hidden = phase !== "paused";
   el("result-screen").hidden = phase !== "finished";
-  el("practice-screen").hidden = phase !== "running" || task !== "key";
+  el("practice-screen").hidden = phase !== "running" || task === "target";
   el("soul").hidden = phase !== "running" || task !== "target";
   el("target-context").hidden = phase !== "running" || task !== "target";
   el("situation-banner").hidden =
     phase !== "running" || settings.mode !== "mixed";
   el("arena-bottom").hidden = phase === "running";
+  el("range-hud").hidden = phase !== "running";
+  el("arena").classList.toggle("has-range", range.available);
+  el("arena").classList.toggle("combat-mode", settings.mode === "mixed");
   el<HTMLButtonElement>("pause-button").disabled = phase !== "running";
   el<HTMLFieldSetElement>("settings-fields").disabled =
     phase === "running" || phase === "paused";
@@ -246,6 +291,7 @@ function showPhase() {
           : "READY WHEN YOU ARE",
   );
   el("arena").classList.toggle("is-running", phase === "running");
+  updateHud();
 }
 function nextTask(now: number) {
   step = null;
@@ -265,7 +311,41 @@ function nextTask(now: number) {
   promptStarted = now;
   const level = LEVELS[settings.difficulty];
   promptDeadline = now + (task === "key" ? level.lifetime * 2 : level.lifetime);
+  goalProgress = 0;
+  el("crosshair").classList.remove("jump-ready");
+  el("goal-meter").hidden = task !== "input";
+  text("goal-status", "");
+  if (step?.kind === "input") {
+    current = null;
+    target = null;
+    range.setTarget(null);
+    el("goal-meter").dataset.kind = step.timedJump
+      ? "jump"
+      : step.goal.behavior;
+    evaluator.begin(step.goal, now, input);
+    promptDeadline =
+      now +
+      (step.timedJump
+        ? settings.difficulty === "rookie"
+          ? 900
+          : settings.difficulty === "regular"
+            ? 700
+            : 550
+        : level.lifetime * 3);
+    text(
+      "prompt-category",
+      `${step.goal.behavior.toUpperCase()} / OVERLAPPING INPUTS`,
+    );
+    text("prompt-label", step.label);
+    text("prompt-tip", step.cue);
+    renderInputHints([...(step.goal.with || []), ...step.goal.actions]);
+    updateGoal(now);
+    renderRange(now, 0);
+    showPhase();
+    return;
+  }
   if (task === "key") {
+    range.setTarget(null);
     const pool = actions().filter(
       (a) => settings.group === "all" || a.group === settings.group,
     );
@@ -305,6 +385,7 @@ function nextTask(now: number) {
       radius: level.radius,
       kind,
     };
+    range.setTarget(kind, level.radius / 29, !!lastHit);
     const soul = el("soul");
     soul.dataset.kind = kind;
     soul.setAttribute(
@@ -326,18 +407,19 @@ function nextTask(now: number) {
           ? "Your ranged last hit released this soul. Shoot to secure it."
           : "The enemy's ranged last hit released this soul. Shoot to deny it."),
     );
-    const holdAction = requiredMovement();
+    const required = requiredActions();
     text(
       "hold-hint",
-      holdAction
+      required.length
         ? settings.hints
-          ? `HOLD ${displayKey(holdAction.key)} WHILE SHOOTING`
-          : `KEEP ${holdAction.label.toUpperCase()} HELD WHILE SHOOTING`
-        : "LEFT CLICK / APPROXIMATE BROWSER MOTION",
+          ? `HOLD ${required.map((a) => displayKey(a.key)).join(" + ")} WHILE FIRING`
+          : `KEEP ${required.map((a) => a.label.toUpperCase()).join(" + ")} HELD WHILE FIRING`
+        : `${displayKey(actionBinding("Attack"))} FIRE / ${displayKey(actionBinding("ADS"))} ZOOM`,
     );
     soul.style.width = soul.style.height = `${target.radius * 2}px`;
-    renderTarget(now);
+    renderRange(now, 0);
   }
+  renderRange(now, 0);
   showPhase();
 }
 function arenaBounds() {
@@ -346,26 +428,213 @@ function arenaBounds() {
 function targetElapsed(now: number) {
   return reducedMotion.matches ? 0 : now - promptStarted;
 }
-function requiredMovement() {
-  const actionId = step?.kind === "target" ? step.holdActionId : undefined;
-  return actionId
-    ? actions().find((action) => action.id === actionId)
-    : undefined;
+function requiredActions() {
+  if (step?.kind !== "target") return [];
+  const ids =
+    step.heldActions || (step.holdActionId ? [step.holdActionId] : []);
+  return actions().filter((action) => ids.includes(action.id));
 }
-function renderTarget(now: number) {
+function renderTarget(
+  now: number,
+  projection: ReturnType<PracticeRange["render"]>,
+) {
   if (!target || task !== "target") return;
-  const position = targetPosition(target, targetElapsed(now), arenaBounds());
+  const position =
+    range.available && projection
+      ? projection
+      : targetPosition(target, targetElapsed(now), arenaBounds());
   el("soul").style.left = `${position.x}px`;
   el("soul").style.top = `${position.y}px`;
+  if (projection && range.available) {
+    el("soul").style.width = `${projection.width}px`;
+    el("soul").style.height = `${projection.height}px`;
+    el("soul").hidden = phase !== "running" || !projection.visible;
+  }
   const progress = Math.min(
     1,
     (now - promptStarted) / (promptDeadline - promptStarted),
   );
   el("soul").style.opacity = String(1 - progress * 0.4);
-  const holdAction = requiredMovement();
+  const required = requiredActions();
   el("hold-hint").classList.toggle(
     "is-held",
-    !!holdAction && bindingIsHeld(holdAction.key, heldKeys),
+    !!required.length && required.every((action) => input.held(action.key)),
+  );
+}
+function renderRange(now: number, delta: number) {
+  const held = new Set(
+    actions()
+      .filter((action) => input.held(action.key))
+      .map((action) => action.id),
+  );
+  const melee =
+    step?.kind === "input" && step.goal.actions.includes("AbilityMelee");
+  const cue =
+    activeTime < parryFlashUntil
+      ? "parry"
+      : current?.id === "HeldItem"
+        ? "enemy-melee"
+        : melee || activeTime < meleeFlashUntil
+          ? "player-melee"
+          : task === "input"
+            ? "movement"
+            : "none";
+  const projection = range.render({
+    now: activeTime,
+    delta,
+    running: phase === "running",
+    actions: held,
+    cue,
+    progress: activeTime < meleeFlashUntil ? 1 : goalProgress,
+    reducedMotion: reducedMotion.matches,
+  });
+  renderTarget(now, projection);
+  const center = document.pointerLockElement === el("range-canvas");
+  el("crosshair").style.left =
+    `${center ? arenaBounds().width / 2 : pointer.x || arenaBounds().width / 2}px`;
+  el("crosshair").style.top =
+    `${center ? arenaBounds().height / 2 : pointer.y || arenaBounds().height / 2}px`;
+}
+function renderInputHints(ids: readonly string[]) {
+  el("key-hint").replaceChildren();
+  if (!settings.hints) {
+    text("key-hint", "WATCH YOUR HELD INPUTS");
+    return;
+  }
+  for (const id of [...new Set(ids)]) {
+    const key = document.createElement("kbd");
+    key.textContent = displayKey(actionBinding(id));
+    key.dataset.action = id;
+    el("key-hint").append(key);
+  }
+}
+function updateGoal(now: number, edge?: InputEdge) {
+  if (phase !== "running" || step?.kind !== "input") return;
+  if (inputExpired(now)) return;
+  const elapsed = now - promptStarted;
+  const ready = elapsed >= (step.readyAfterMs || 0);
+  el("crosshair").classList.toggle("jump-ready", !!step.timedJump && ready);
+  const primary =
+    edge?.kind === "down" &&
+    !edge.repeat &&
+    step.goal.actions.some(
+      (id) => actionBinding(id).split("+").at(-1) === edge.key,
+    );
+  if (primary && step.releasedActions?.some(actionHeld)) {
+    record(false, now, false);
+    feedback("RELEASE CROUCH BEFORE DASHING.", false);
+    return;
+  }
+  if (!ready) {
+    goalProgress = Math.min(1, elapsed / (step.readyAfterMs || 1));
+    text("goal-status", "WAIT FOR THE BLUE JUMP CUE");
+    el("goal-meter").dataset.state = "waiting";
+    if (primary) {
+      record(false, now, false);
+      feedback("TOO EARLY. WAIT FOR THE BLUE CUE.", false);
+    }
+  } else {
+    const result = evaluator.update(input, now, edge);
+    const note = result.note.replace(
+      /\b(?:MOUSE[1-5]|CAPSLOCK|CTRL|SHIFT|SPACE)\b/g,
+      (key) => displayKey(key),
+    );
+    goalProgress = result.progress;
+    text(
+      "goal-status",
+      step.timedJump
+        ? "JUMP NOW / BLUE CUE"
+        : note ||
+            (step.goal.behavior === "hold"
+              ? "KEEP ALL REQUIRED INPUTS HELD"
+              : step.goal.behavior === "release"
+                ? "RELEASE ONLY THE INDICATED INPUT"
+                : "ASSEMBLE THE INPUTS"),
+    );
+    el("goal-meter").dataset.state = "ready";
+    if (result.failed) {
+      record(false, now, false);
+      feedback(note || "KEEP THE REQUIRED INPUTS OVERLAPPED.", false);
+    }
+    if (result.complete) {
+      if (
+        step.goal.actions.includes("AbilityMelee") &&
+        step.goal.behavior === "hold"
+      )
+        meleeFlashUntil = activeTime + 300;
+      record(true, now);
+      return;
+    }
+  }
+  el("goal-meter-fill").style.width = `${goalProgress * 100}%`;
+}
+function inputExpired(now: number) {
+  if (now >= deadline) {
+    remaining = 0;
+    finish();
+    return true;
+  }
+  if (now >= promptDeadline) {
+    record(false, now);
+    return true;
+  }
+  return false;
+}
+function renderHudBindings() {
+  for (const [id, group] of [
+    ["hud-items", "items"],
+    ["hud-abilities", "abilities"],
+    ["hud-movement", "movement"],
+  ] as const) {
+    el(id).replaceChildren(
+      ...actions()
+        .filter(
+          (action) =>
+            action.group === group &&
+            (group !== "movement" ||
+              ["Roll", "Mantle", "Crouch"].includes(action.id)),
+        )
+        .map((action, index) => {
+          const slot = document.createElement("div");
+          slot.className = "hud-slot";
+          slot.dataset.action = action.id;
+          const icon = document.createElement("span");
+          icon.textContent =
+            group === "movement"
+              ? action.id === "Roll"
+                ? "DASH"
+                : action.id === "Mantle"
+                  ? "JUMP"
+                  : "CROUCH"
+              : String(index + 1);
+          const key = document.createElement("kbd");
+          key.textContent = displayKey(action.key);
+          slot.append(icon, key);
+          return slot;
+        }),
+    );
+  }
+}
+function updateHud() {
+  const keys = [...input.keys];
+  el("held-inputs").replaceChildren(
+    ...keys.map((key) => {
+      const kbd = document.createElement("kbd");
+      kbd.textContent = displayKey(key);
+      return kbd;
+    }),
+  );
+  document
+    .querySelectorAll<HTMLElement>("[data-action]")
+    .forEach((slot) =>
+      slot.classList.toggle("is-down", actionHeld(slot.dataset.action!)),
+    );
+  text("hud-ammo-count", `${ammo} / 12`);
+  text(
+    "hud-reload",
+    reloadingUntil > activeTime
+      ? "RELOADING..."
+      : `${displayKey(actionBinding("Reload"))} RELOAD`,
   );
 }
 function feedback(message: string, good: boolean) {
@@ -396,6 +665,9 @@ function record(success: boolean, now: number, advance = true) {
 }
 function tick(now: number) {
   if (phase !== "running") return;
+  const delta = Math.max(0, Math.min(0.05, (now - lastFrameTime) / 1000));
+  activeTime += Math.max(0, now - lastFrameTime);
+  lastFrameTime = now;
   remaining = Math.max(0, deadline - now);
   if (remaining <= 0) {
     finish();
@@ -405,8 +677,16 @@ function tick(now: number) {
     lastShownSecond = Math.ceil(remaining / 1000);
     stats();
   }
+  if (reloadingUntil && activeTime >= reloadingUntil) {
+    reloadingUntil = 0;
+    ammo = 12;
+    updateHud();
+  }
   if (now >= promptDeadline) record(false, now);
-  renderTarget(now);
+  if (task === "input") updateGoal(now);
+  renderRange(now, delta);
+  if (task === "target" && actionHeld("Attack") && activeTime >= nextShotAt)
+    shoot(now);
   frame = requestAnimationFrame(tick);
 }
 function start() {
@@ -420,7 +700,14 @@ function start() {
   scenario = null;
   scenarioStep = 0;
   previousScenarioId = undefined;
-  heldKeys.clear();
+  input.clear();
+  range.reset();
+  range.resize();
+  activeTime = 0;
+  lastFrameTime = performance.now();
+  ammo = 12;
+  reloadingUntil = nextShotAt = meleeFlashUntil = parryFlashUntil = 0;
+  pointer = { x: arenaBounds().width / 2, y: arenaBounds().height / 2 };
   lastShownSecond = -1;
   remaining = settings.duration * 1000;
   deadline = performance.now() + remaining;
@@ -439,11 +726,13 @@ function pause() {
     return;
   }
   phase = "paused";
-  heldKeys.clear();
+  input.clear();
+  releaseCapture();
   cancelAnimationFrame(frame);
   clearTimeout(feedbackTimer);
   text("feedback", "");
   showPhase();
+  renderRange(pauseTime, 0);
   el("resume-button").focus();
 }
 function resume() {
@@ -453,7 +742,17 @@ function resume() {
   deadline = now + remaining;
   promptStarted += pausedFor;
   promptDeadline += pausedFor;
+  lastFrameTime = now;
   phase = "running";
+  if (step?.kind === "input" && step.timedJump) {
+    scenarioStep = 0;
+    nextTask(now);
+  } else if (step?.kind === "input") {
+    promptStarted = now;
+    promptDeadline = now + LEVELS[settings.difficulty].lifetime * 3;
+    evaluator.begin(step.goal, now, input);
+    goalProgress = 0;
+  }
   showPhase();
   el("arena").focus();
   frame = requestAnimationFrame(tick);
@@ -461,6 +760,8 @@ function resume() {
 function finish() {
   cancelAnimationFrame(frame);
   phase = "finished";
+  input.clear();
+  releaseCapture();
   clearTimeout(feedbackTimer);
   text("feedback", "");
   const duration = Math.max(
@@ -528,6 +829,14 @@ el("scenario").addEventListener("change", () =>
 el("hints").addEventListener("change", () =>
   changeSetup({ hints: el<HTMLInputElement>("hints").checked }),
 );
+el("safe-crouch").addEventListener("change", () =>
+  changeSetup({ safeCrouch: el<HTMLInputElement>("safe-crouch").checked }),
+);
+el("sensitivity").addEventListener("input", () =>
+  changeSetup({
+    sensitivity: Number(el<HTMLInputElement>("sensitivity").value),
+  }),
+);
 el("start-button").addEventListener("click", start);
 el("again-button").addEventListener("click", start);
 el("pause-button").addEventListener("click", pause);
@@ -544,7 +853,9 @@ document.addEventListener("visibilitychange", () => {
 });
 window.addEventListener("blur", pause);
 window.addEventListener("resize", () => {
-  if (phase === "running") pause();
+  if (phase === "running" && !captureTransition) pause();
+  range.resize();
+  renderRange(performance.now(), 0);
 });
 reducedMotion.addEventListener("change", pause);
 
@@ -568,7 +879,11 @@ function finishRebind(key: string) {
   document.querySelector<HTMLButtonElement>(`[data-binding="${id}"]`)?.focus();
 }
 function handleKeyup(event: KeyboardEvent) {
-  heldKeys.delete(physicalKey(event));
+  const edge = input.keyUp(event, performance.now());
+  if (phase === "running") {
+    updateGoal(performance.now(), edge);
+    updateHud();
+  }
   if (!capture || !["Shift", "Control", "Alt"].includes(event.key)) return;
   event.preventDefault();
   finishRebind(keyFromEvent(event));
@@ -600,12 +915,21 @@ function handleKeydown(event: KeyboardEvent) {
     return;
   }
   if (phase !== "running") return;
-  heldKeys.add(physicalKey(event));
   if (event.key === "Escape") {
     event.preventDefault();
     pause();
     return;
   }
+  if (
+    event.key === "Tab" ||
+    (event.target instanceof Element &&
+      event.target.closest(
+        "button, input, select, textarea, a, [contenteditable=true]",
+      ))
+  )
+    return;
+  const now = performance.now();
+  const edge = input.keyDown(event, now);
   if (event.ctrlKey || event.metaKey || event.altKey) {
     // Leave browser shortcuts alone unless this input belongs to the current drill.
     const key = keyFromEvent(event);
@@ -613,11 +937,18 @@ function handleKeydown(event: KeyboardEvent) {
       task === "key" &&
       current &&
       matchesAction(event, current, settings.mode === "mixed");
-    if (!expected && !actions().some((a) => a.key === key)) return;
+    if (
+      !expected &&
+      !actions().some(
+        (a) => a.key === key || a.key.split("+").at(-1) === edge.key,
+      )
+    )
+      return;
   }
   event.preventDefault();
-  if (event.repeat || task !== "key") return;
-  const now = performance.now();
+  updateHud();
+  if (event.repeat) return;
+  applyActionEdges(edge);
   if (now >= deadline) {
     remaining = 0;
     finish();
@@ -625,6 +956,20 @@ function handleKeydown(event: KeyboardEvent) {
   }
   if (now >= promptDeadline) {
     record(false, now);
+    return;
+  }
+  if (task === "input") {
+    updateGoal(now, edge);
+    renderRange(now, 0);
+    return;
+  }
+  if (task === "target") {
+    renderRange(now, 0);
+    if (
+      edge.key === actionBinding("Attack").split("+").at(-1) &&
+      actionHeld("Attack")
+    )
+      shoot(now);
     return;
   }
   const key = keyFromEvent(event);
@@ -639,10 +984,64 @@ function handleKeydown(event: KeyboardEvent) {
     record(success, now, success);
   }
 }
-el("arena").addEventListener("pointerdown", (event) => {
-  if (phase !== "running" || task !== "target" || event.button !== 0 || !target)
+function shoot(now: number) {
+  if (phase !== "running" || task !== "target" || !target) return;
+  if (inputExpired(now)) return;
+  if (activeTime < nextShotAt) return;
+  nextShotAt = activeTime + 160;
+  if (reloadingUntil > activeTime || ammo <= 0) {
+    feedback(
+      ammo <= 0
+        ? `EMPTY MAGAZINE. ${displayKey(actionBinding("Reload"))} TO RELOAD.`
+        : "RELOADING...",
+      false,
+    );
+    return;
+  }
+  ammo--;
+  updateHud();
+  const required = requiredActions();
+  if (!required.every((action) => input.held(action.key))) {
+    record(false, now, false);
+    feedback(
+      `KEEP ${required.map((action) => (settings.hints ? displayKey(action.key) : action.label)).join(" + ")} HELD WHILE FIRING.`,
+      false,
+    );
+    return;
+  }
+  const locked = document.pointerLockElement === el("range-canvas");
+  const aim = locked
+    ? { x: arenaBounds().width / 2, y: arenaBounds().height / 2 }
+    : pointer;
+  renderRange(now, 0);
+  const success = range.available
+    ? range.hitTest(aim.x, aim.y)
+    : targetContains(target, targetElapsed(now), arenaBounds(), aim.x, aim.y);
+  record(success, now, success);
+}
+function applyActionEdges(edge: InputEdge) {
+  if (edge.kind !== "down" || edge.repeat || edge.changed === false) return;
+  if (
+    edge.key === actionBinding("Reload").split("+").at(-1) &&
+    actionHeld("Reload")
+  ) {
+    reloadingUntil = activeTime + 1400;
+    updateHud();
+  }
+  if (
+    edge.key === actionBinding("HeldItem").split("+").at(-1) &&
+    actionHeld("HeldItem")
+  )
+    parryFlashUntil = activeTime + 600;
+}
+function handleButtonDown(event: MouseEvent) {
+  if (
+    phase !== "running" ||
+    (event.target as HTMLElement).closest(".range-toolbar")
+  )
     return;
   event.preventDefault();
+  el("arena").focus();
   const now = performance.now();
   if (now >= deadline) {
     remaining = 0;
@@ -653,24 +1052,153 @@ el("arena").addEventListener("pointerdown", (event) => {
     record(false, now);
     return;
   }
-  const rect = el("arena").getBoundingClientRect();
-  const holdAction = requiredMovement();
-  if (holdAction && !bindingIsHeld(holdAction.key, heldKeys)) {
-    record(false, now, false);
-    feedback(
-      `KEEP ${settings.hints ? displayKey(holdAction.key) : holdAction.label} HELD WHILE SHOOTING.`,
-      false,
-    );
-    return;
+  updatePointer(event);
+  const edge = input.pointerDown(event.button, now);
+  applyActionEdges(edge);
+  updateHud();
+  if (task === "input") updateGoal(now, edge);
+  else if (
+    task === "target" &&
+    edge.key === actionBinding("Attack").split("+").at(-1) &&
+    actionHeld("Attack")
+  )
+    shoot(now);
+  else if (task === "key" && current) {
+    const binding = pointerBinding(event);
+    record(binding === current.key, now, binding === current.key);
   }
-  const success = targetContains(
-    target,
-    targetElapsed(now),
-    arenaBounds(),
-    event.clientX - rect.left - el("arena").clientLeft,
-    event.clientY - rect.top - el("arena").clientTop,
+  renderRange(now, 0);
+}
+// Pointer events report only the first/last mouse button in a chord; mouse events report every edge.
+el("arena").addEventListener("mousedown", handleButtonDown);
+el("arena").addEventListener("pointerdown", (event) => {
+  if (event.pointerType !== "mouse") handleButtonDown(event);
+});
+function updatePointer(event: MouseEvent) {
+  const rect = el("arena").getBoundingClientRect();
+  if (document.pointerLockElement === el("range-canvas"))
+    range.look(
+      event.movementX * settings.sensitivity,
+      event.movementY * settings.sensitivity,
+    );
+  else
+    pointer = {
+      x: event.clientX - rect.left - el("arena").clientLeft,
+      y: event.clientY - rect.top - el("arena").clientTop,
+    };
+}
+el("arena").addEventListener("pointermove", (event) => {
+  if (phase === "running") {
+    updatePointer(event);
+    renderRange(performance.now(), 0);
+  }
+});
+function handleButtonUp(event: MouseEvent) {
+  const edge = input.pointerUp(event.button, performance.now());
+  if (phase === "running") {
+    updateGoal(performance.now(), edge);
+    updateHud();
+  }
+}
+document.addEventListener("mouseup", handleButtonUp);
+document.addEventListener("pointerup", (event) => {
+  if (event.pointerType !== "mouse") handleButtonUp(event);
+});
+el("arena").addEventListener("pointercancel", () => {
+  if (phase === "running") pause();
+  else input.clear();
+});
+el("arena").addEventListener("contextmenu", (event) => {
+  if (phase === "running") event.preventDefault();
+});
+el("arena").addEventListener("auxclick", (event) => {
+  if (phase === "running") event.preventDefault();
+});
+function pointerBinding(event: MouseEvent) {
+  const code =
+    ["MOUSE1", "MOUSE3", "MOUSE2", "MOUSE4", "MOUSE5"][event.button] || "";
+  return keyFromEvent({
+    code,
+    key: "",
+    ctrlKey: event.ctrlKey,
+    altKey: event.altKey,
+    shiftKey: event.shiftKey,
+    metaKey: event.metaKey,
+  });
+}
+
+type KeyboardCapture = { lock(): Promise<void>; unlock(): void };
+const keyboardCapture = (
+  navigator as Navigator & { keyboard?: KeyboardCapture }
+).keyboard;
+function releaseCapture() {
+  try {
+    keyboardCapture?.unlock();
+  } catch {
+    /* Optional browser capability. */
+  }
+  if (document.pointerLockElement) document.exitPointerLock();
+}
+async function captureMouse() {
+  if (phase !== "running" || !range.available) return;
+  try {
+    await el<HTMLCanvasElement>("range-canvas").requestPointerLock();
+    if (phase !== "running") {
+      releaseCapture();
+      return;
+    }
+    if (document.fullscreenElement && keyboardCapture) {
+      try {
+        await keyboardCapture.lock();
+      } catch {
+        feedback("KEYBOARD CAPTURE UNAVAILABLE. KEEP SAFE CROUCH ON.", false);
+      }
+    }
+  } catch {
+    feedback("MOUSE CAPTURE UNAVAILABLE. FREE CURSOR STILL WORKS.", false);
+  } finally {
+    if (phase === "running") el("arena").focus();
+  }
+}
+el("mouse-look").addEventListener("click", () => {
+  if (document.pointerLockElement) pause();
+  else void captureMouse();
+});
+el("fullscreen-button").addEventListener("click", async () => {
+  const wasRunning = phase === "running";
+  captureTransition = true;
+  try {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else await el("arena").requestFullscreen();
+    range.resize();
+    if (wasRunning) {
+      if (phase === "paused") resume();
+      await captureMouse();
+    }
+  } catch {
+    feedback("FULLSCREEN UNAVAILABLE. NORMAL PRACTICE STILL WORKS.", false);
+  } finally {
+    captureTransition = false;
+    if (phase === "running") el("arena").focus();
+  }
+});
+document.addEventListener("pointerlockchange", () => {
+  const locked = document.pointerLockElement === el("range-canvas");
+  text("mouse-look", locked ? "Release mouse / pause" : "Capture mouse");
+  text(
+    "range-status",
+    locked
+      ? "MOUSE LOOK · ESC TO PAUSE / RELEASE"
+      : range.available
+        ? "FREE CURSOR · ORIGINAL PRACTICE RANGE"
+        : "2D FALLBACK · WEBGL UNAVAILABLE",
   );
-  record(success, now, success);
+  if (!locked && phase === "running" && !captureTransition) pause();
+});
+el("range-canvas").addEventListener("webglcontextlost", (event) => {
+  event.preventDefault();
+  pause();
+  feedback("3D CONTEXT LOST. RELOAD THE PAGE TO RESTORE THE RANGE.", false);
 });
 
 const dialog = el<HTMLDialogElement>("bindings-dialog");
@@ -678,7 +1206,7 @@ function renderBindings() {
   syncKeyboardListeners();
   const list = el("bindings-list");
   list.replaceChildren();
-  for (const action of actions()) {
+  for (const action of actions(false)) {
     const row = document.createElement("div");
     row.className = "binding-row";
     const label = document.createElement("span");
@@ -693,6 +1221,14 @@ function renderBindings() {
     );
     button.dataset.binding = action.id;
     button.classList.toggle("capturing", capture === action.id);
+    button.addEventListener("mousedown", (event) => {
+      if (capture !== action.id) return;
+      const key = pointerBinding(event);
+      if (!trainableBinding(key)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      finishRebind(key);
+    });
     button.addEventListener("click", () => {
       capture = action.id;
       renderBindings();
@@ -725,6 +1261,9 @@ el("bindings-button").addEventListener("click", openBindings);
 el("edit-bindings").addEventListener("click", openBindings);
 el("close-bindings").addEventListener("click", closeBindings);
 el("done-bindings").addEventListener("click", closeBindings);
+dialog.addEventListener("contextmenu", (event) => {
+  if (capture) event.preventDefault();
+});
 dialog.addEventListener("cancel", (event) => {
   if (capture) {
     event.preventDefault();
@@ -788,8 +1327,20 @@ for (const scenario of SCENARIOS) {
   option.textContent = scenario.title;
   el("scenario").append(option);
 }
+text(
+  "range-status",
+  range.available
+    ? "FREE CURSOR · ORIGINAL PRACTICE RANGE"
+    : "2D FALLBACK · WEBGL UNAVAILABLE",
+);
 updateSetup();
 showPhase();
+range.resize();
+renderRange(performance.now(), 0);
+window.addEventListener("pagehide", (event) => {
+  pause();
+  if (!event.persisted) range.dispose();
+});
 text(
   "storage-note",
   storageAvailable

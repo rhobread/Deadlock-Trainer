@@ -1,4 +1,5 @@
 import { keyFromEvent, type Action } from "./trainer";
+import type { InputGoal } from "./input";
 
 type KeyStep = { kind: "key"; actionId: string; cue: string };
 type TargetStep = {
@@ -6,8 +7,18 @@ type TargetStep = {
   target: "trooper" | "secure" | "deny";
   cue: string;
   holdActionId?: string;
+  heldActions?: readonly string[];
 };
-export type DrillStep = KeyStep | TargetStep;
+type InputStep = {
+  kind: "input";
+  label: string;
+  cue: string;
+  goal: InputGoal;
+  readyAfterMs?: number;
+  timedJump?: boolean;
+  releasedActions?: readonly string[];
+};
+export type DrillStep = KeyStep | TargetStep | InputStep;
 export type Scenario = {
   id: string;
   title: string;
@@ -77,14 +88,197 @@ export const SCENARIOS: readonly Scenario[] = [
       "Rehearse dash, then jump. Learn the actual movement timing in the sandbox.",
     steps: [
       {
-        kind: "key",
-        actionId: "Roll",
-        cue: "You need to reposition. Start with a dash.",
+        kind: "input",
+        label: "Directional dash",
+        goal: { actions: ["Roll"], with: ["MoveForward"], behavior: "press" },
+        cue: "Hold forward and press dash. Keep forward held for the jump.",
+      },
+      {
+        kind: "input",
+        label: "Jump on the blue cue",
+        goal: { actions: ["Mantle"], with: ["MoveForward"], behavior: "press" },
+        readyAfterMs: 300,
+        timedJump: true,
+        cue: "Keep forward held. Press jump when the cue turns blue; dash may remain held.",
+      },
+    ],
+  },
+  {
+    id: "light-melee",
+    title: "Light melee: tap, not hold",
+    lesson: "Distinguish a short melee press from a heavy-melee hold.",
+    steps: [
+      {
+        kind: "input",
+        label: "Tap melee",
+        cue: "Give melee a short tap. We check duration on release; this is not a release-to-attack mechanic.",
+        goal: { actions: ["AbilityMelee"], behavior: "tap", tapMaxMs: 250 },
+      },
+      {
+        kind: "input",
+        label: "Strafe out",
+        cue: "Hold left and back together to move out at an angle.",
+        goal: {
+          actions: ["MoveLeft", "MoveBackwards"],
+          behavior: "hold",
+          holdMs: 300,
+        },
+      },
+    ],
+  },
+  {
+    id: "heavy-melee",
+    title: "Heavy melee: hold through windup",
+    lesson:
+      "Heavy melee commits while held. Release afterward to re-arm the next rep.",
+    steps: [
+      {
+        kind: "input",
+        label: "Hold heavy melee",
+        cue: "Hold melee continuously through the charge cue. Do not tap or release to fire.",
+        goal: { actions: ["AbilityMelee"], behavior: "hold", holdMs: 500 },
+      },
+      {
+        kind: "input",
+        label: "Release melee",
+        cue: "The heavy has committed. Release melee so the next press is a fresh input.",
+        goal: { actions: ["AbilityMelee"], behavior: "release" },
       },
       {
         kind: "key",
-        actionId: "Mantle",
-        cue: "Follow your dash with a jump. This drill checks order, not game timing.",
+        actionId: "HeldItem",
+        cue: "Your partner winds up a return melee. Press parry; no urn is carried.",
+      },
+    ],
+  },
+  {
+    id: "moving-heavy",
+    title: "Movement + heavy melee",
+    lesson: "Keep directional inputs held while committing a heavy melee.",
+    steps: [
+      {
+        kind: "input",
+        label: "Move diagonally + charge",
+        cue: "Hold forward, right, and melee at the same time through the charge cue.",
+        goal: {
+          actions: ["AbilityMelee"],
+          with: ["MoveForward", "MoveRight"],
+          behavior: "hold",
+          holdMs: 500,
+        },
+      },
+      {
+        kind: "input",
+        label: "Release melee, keep moving",
+        cue: "Let melee go without releasing forward and right.",
+        goal: {
+          actions: ["AbilityMelee"],
+          with: ["MoveForward", "MoveRight"],
+          behavior: "release",
+        },
+      },
+    ],
+  },
+  {
+    id: "crouch-melee",
+    title: "Crouch + heavy melee coordination",
+    lesson:
+      "Rehearse overlapping crouch and melee; this does not claim a special damage combo.",
+    steps: [
+      {
+        kind: "input",
+        label: "Crouch + hold melee",
+        cue: "Keep crouch down while holding melee through its windup. Watch the live held-input HUD.",
+        goal: {
+          actions: ["AbilityMelee"],
+          with: ["Crouch"],
+          behavior: "hold",
+          holdMs: 500,
+        },
+      },
+      {
+        kind: "input",
+        label: "Release melee independently",
+        cue: "Release only melee. Keep crouch held.",
+        goal: {
+          actions: ["AbilityMelee"],
+          with: ["Crouch"],
+          behavior: "release",
+        },
+      },
+      {
+        kind: "input",
+        label: "Stand up",
+        cue: "Now release crouch. Releasing one input must not release the other.",
+        goal: { actions: ["Crouch"], behavior: "release" },
+      },
+    ],
+  },
+  {
+    id: "dash-slide",
+    title: "Dash → crouch → shoot → release",
+    lesson:
+      "Add crouch after the dash, keep it held while firing, then release to end the slide cue.",
+    steps: [
+      {
+        kind: "input",
+        label: "Forward + dash",
+        cue: "Hold forward and press dash. Do not pre-hold crouch; add it on the next cue.",
+        releasedActions: ["Crouch"],
+        goal: { actions: ["Roll"], with: ["MoveForward"], behavior: "press" },
+      },
+      {
+        kind: "input",
+        label: "Add and hold crouch",
+        cue: "Now add crouch while keeping forward held. The range uses approximate movement, not game slide physics.",
+        goal: {
+          actions: ["Crouch"],
+          with: ["MoveForward"],
+          behavior: "hold",
+          holdMs: 300,
+        },
+      },
+      {
+        kind: "target",
+        target: "deny",
+        heldActions: ["MoveForward", "Crouch"],
+        cue: "Keep forward and crouch held together while shooting the enemy soul.",
+      },
+      {
+        kind: "input",
+        label: "Release crouch only",
+        cue: "Release crouch to cancel the slide cue. Keep forward held.",
+        goal: {
+          actions: ["Crouch"],
+          with: ["MoveForward"],
+          behavior: "release",
+        },
+      },
+    ],
+  },
+  {
+    id: "zoom-strafe",
+    title: "Strafe + zoom + fire",
+    lesson:
+      "Practice three simultaneous inputs with a zoom-capable training weapon. Hero alt-fire behavior varies.",
+    steps: [
+      {
+        kind: "input",
+        label: "Strafe while zooming",
+        cue: "Hold right movement and zoom together. This range models zoom, not every hero's alternate fire.",
+        goal: { actions: ["MoveRight", "ADS"], behavior: "hold", holdMs: 250 },
+      },
+      {
+        kind: "target",
+        target: "trooper",
+        heldActions: ["MoveRight", "ADS"],
+        cue: "Keep movement and zoom held while firing at the low-health target.",
+      },
+      {
+        kind: "input",
+        label: "Release zoom, keep moving",
+        cue: "Release zoom without letting go of right movement.",
+        goal: { actions: ["ADS"], with: ["MoveRight"], behavior: "release" },
       },
     ],
   },

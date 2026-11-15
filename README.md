@@ -1,6 +1,8 @@
 # Deadlock Trainer
 
-A small, standalone warm-up room for new Deadlock players. Practice your keybinds, get comfortable clicking targets, and build muscle memory before your next match.
+A standalone warm-up room for new Deadlock players. Practice physical key recall, held melee, overlapping movement/crouch/zoom/fire, and independent releases in an original third-person practice range.
+
+This can help input familiarity and hand coordination. It is not evidence that your in-game aim or combat will improve, and it does not replace Deadlock's sandbox. The range uses original primitive geometry and a combat-oriented HUD, not a copy of the game's map, hero assets, or engine.
 
 Unofficial fan project. Not affiliated with Valve. This app never connects to Deadlock, changes game files, or automates gameplay.
 
@@ -29,49 +31,91 @@ npm run dev
 1. Pick a mode from the left sidebar. On small screens, use the three mode icons at the top.
 2. Choose a 30, 60, or 120 second session and a difficulty.
 3. For key practice, select all keys or a smaller group such as abilities or movement. Leave **Training wheels** enabled to see the expected key; turn it off when you feel comfortable.
-4. Click **Start training**. Press the key for the displayed action, or left-click the glowing soul before it disappears. Misses count against accuracy. Timed-out prompts count as misses too.
+4. Click **Start training**. Follow the objective: tap, continuously hold, release one control while keeping others down, or fire at the target. The **HELD NOW** HUD shows what is actually down. Sequential taps do not pass a simultaneous hold. Misses, interrupted relevant holds, and timed-out prompts count against accuracy.
 5. Press `Escape` or use the pause button for a break. Switching away from the app or resizing the window pauses automatically. Resume explicitly when ready.
 6. Review correct inputs, accuracy, and median response time. **Go again** starts another session; **Back to setup** lets you adjust your practice.
 
 ### Modes
 
-| Mode            | What you practice                                                      |
-| --------------- | ---------------------------------------------------------------------- |
-| Keybind recall  | Physical key recall for movement, combat, abilities, and active items. |
-| Soul practice   | Acquire rising souls, alternating between secure and deny cues.        |
-| Lane situations | Contextual input sequences and simultaneous movement/aim practice.     |
+| Mode           | What you practice                                                                                                 |
+| -------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Keybind recall | Physical key recall for movement, combat, abilities, and active items.                                            |
+| Soul practice  | Acquire rising souls in the third-person practice lane.                                                           |
+| Combat range   | Held/chord/tap/release drills, directional dash-jumps, dash-slide sequences, and combined movement/mouse actions. |
 
 Rookie gives you larger targets and longer response windows. Regular and Sharpshooter progressively reduce target size and available time. Accuracy comes before speed.
 
-Aim practice uses your normal browser cursor. It does **not** reproduce Deadlock's sensitivity, 3D camera, recoil, movement, soul physics, or combat timing. Finish your warm-up in Deadlock's own sandbox for game-specific mechanics. Keyboard practice is intended for a physical keyboard; touch devices can use the aim drill and settings.
+### Camera and Combat HUD
 
-### Lane Situations
+The 3D lane contains a shoulder-view training character, target troopers, rising souls, cover props, and a melee training partner. Movement translates the camera; crouch lowers it; dash and jump respond to fresh key-down edges rather than repeating while held. Targets are scored against their actual meshes, not the rectangular accessible target proxy.
 
-Choose **Lane situations** (the third mode), then select a situation or rotate through all six:
+- **Free cursor:** the default, beginner-friendly mode. Aim with the cursor and use your fire binding. It is less game-like than captured mouse look.
+- **Capture mouse:** after starting, click this button for relative camera look with a centered crosshair. **Escape** pauses and releases the mouse. Resuming does not silently re-capture it; click capture again.
+- **Fullscreen:** expands the range. While running it also requests mouse capture and, when supported, the browser's Keyboard Lock API. Unsupported or denied capture leaves free-cursor practice available.
+- **Mouse-look speed:** changes only this trainer's camera speed, not an in-game sensitivity conversion.
+- **Weapon model:** a generic 12-round practice weapon, 160 ms firing cadence, and 1.4 second reload. Hold fire for automatic fire. These are training values, not any hero's weapon stats.
+- **HUD:** ability/item slots and bindings respond to held inputs. Health is display-only; the mini-map is a schematic. There is no damage or stamina balance simulation.
+- **Fallback:** without WebGL, targeting falls back to the local 2D drill. Hold/chord rules still work. Reduced-motion settings stop soul drift and camera bob.
 
-| Situation              | Input rehearsal                                                       |
-| ---------------------- | --------------------------------------------------------------------- |
-| Last hit, then secure  | Click the low-health trooper target, then acquire its rising soul.    |
-| Contest the enemy soul | Deny the enemy's released soul, then move toward the indicated cover. |
-| Read the heavy melee   | Recognize a heavy-melee cue, find parry, then create space.           |
-| Dash into a jump       | Press dash, then jump; holding dash while jumping is accepted.        |
-| Cover, then reload     | Move toward the indicated cover, then reload.                         |
-| Move and contest       | Hold your strafe key while clicking the enemy's rising soul.          |
+The range does **not** reproduce exact Deadlock camera offsets, sensitivity, animations, recoil, collision, slide momentum, stamina, damage, parry windows, or hero-specific alternate fire. Finish in Deadlock's sandbox. Chord drills require a physical keyboard and mouse; touch devices can use free-cursor targeting and settings.
 
-Every situation uses your editable/imported bindings. In **Move and contest**, keep the movement key held until the shot; a shot without it counts as a miss. Pausing clears held keys, so press the movement key again after resuming. A timed-out step restarts the situation rather than teaching an incomplete sequence.
+### Combat Drills
 
-These drills rehearse recognition, input order, and hand coordination. Their response windows are generous training settings, **not** Deadlock's parry windows, dash-jump timing, stamina, collision, damage, or hero-specific tactics. The cover and enemy cues are illustrative. Soul colors distinguish secure/deny instructions and their movement is approximate; neither is a claim of game-accurate visuals or physics. A soul shot follows a **ranged** last hit here, never a melee last hit.
+Choose **Combat range** (the third mode), then select a drill or rotate through all twelve:
 
-When your system's reduced-motion preference is enabled, targets remain still while the input and time-limit rules stay the same.
+| Situation                    | Input rehearsal                                                                                                                                    |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Last hit, then secure        | Fire at the low-health trooper, then acquire its rising soul.                                                                                      |
+| Contest the enemy soul       | Deny the released soul, then move toward the indicated cover.                                                                                      |
+| Read the heavy melee         | Recognize a heavy-melee cue, find parry, then create space.                                                                                        |
+| Dash into a jump             | Hold forward, press dash, then jump on the blue cue. Dash may remain held, but is not required to.                                                 |
+| Cover, then reload           | Move toward indicated cover, then reload.                                                                                                          |
+| Move and contest             | Keep your strafe key held while shooting the enemy soul.                                                                                           |
+| Light melee                  | Make a short melee tap, then hold a diagonal movement chord.                                                                                       |
+| Heavy melee                  | Hold through the charge cue; the heavy commits while still held. Release only to re-arm the next input.                                            |
+| Movement + heavy melee       | Keep forward + right held while holding melee, then release melee without dropping movement.                                                       |
+| Crouch + heavy melee         | Hold crouch and melee together; release melee first, then crouch separately. This is coordination practice, not a special damage technique.        |
+| Dash, crouch, shoot, release | Hold forward, dash with crouch released, add crouch, shoot with both still held, then release crouch only.                                         |
+| Strafe + zoom + fire         | Overlap movement, held zoom, and primary fire, then release zoom independently. Assumes a zoom-capable practice weapon, not every hero's alt-fire. |
 
-The action identifiers were checked against the installed Deadlock control manifest. Background mechanics were cross-checked against the community wiki's [floating soul orbs](https://deadlock.wiki/Souls#Floating_orbs) and [movement](https://deadlock.wiki/Movement#Dash_Jump) explanations. Those are reference material, not a guarantee that this trainer tracks every game patch. The parry scenario assumes you are not carrying an urn, since the same game action also handles held-urn interactions.
+Drills use editable/imported bindings except the explicitly labeled optional safe crouch override below. Pausing clears held inputs and partial hold credit. Re-establish the inputs after resuming. A paused dash-jump restarts from dash rather than allowing a jump against a stale window. A timed-out step restarts the situation.
+
+**Training timing:** light taps are graded on release with a 250 ms maximum; heavy holds use a 500 ms continuous training threshold. These are not verified Deadlock tap/hold cutoffs. Light grading on release does not mean the game's light attack fires on release. Heavy commitment does not require release.
+
+Dash-jump opens a blue cue 300 ms after dash input. Rookie keeps it open until 900 ms, Regular until 700 ms, and Sharpshooter until 550 ms. The sharp 300-550 ms cue follows the June 30, 2026 reference below; the other windows deliberately provide assistance. None is certified against the installed engine. OS key-repeat events cannot satisfy holds or trigger repeated dashes/jumps.
+
+Cover/enemy cues, soul motion, and soul colors are illustrative. A soul shot follows a **ranged** last hit here, never a melee last hit.
+
+### Browser Shortcut Safety
+
+**Ctrl+W can close the tab, and other Ctrl/Alt chords can activate browser or OS shortcuts.** Fullscreen and `preventDefault` are not universal fixes. Keyboard Lock has limited support and cannot capture every OS-reserved shortcut. Repeated Shift can also trigger the operating system's Sticky Keys prompt.
+
+**Browser-safe crouch is on by default for Combat range.** If the saved crouch binding contains Ctrl, the drill uses **Caps Lock** instead and labels it in the objective/HUD. This changes only the effective training input, not the saved/imported binding or any game file. The keybind dialog still shows your original Ctrl binding. The toggle does not affect key recall or soul practice. Custom non-Ctrl crouch bindings are preserved.
+
+Keep this on for forward+crouch or crouch+melee chords unless you deliberately choose another safe binding or understand your browser's capture limitations. Caps Lock may toggle typing capitalization; physical-key matching does not depend on capitalization. If you need exact Ctrl chords without browser interruption, Deadlock's sandbox is the reliable option. Do not disable OS safeguards just for the trainer.
+
+### Mechanics References
+
+Control identifiers were checked against the installed Deadlock control manifest, but legacy labels are not reliable proof of current mechanics. Research references:
+
+| Mechanic               | Reference and implementation boundary                                                                                                                                                                                       |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tap vs hold melee      | [Melee Attack](https://deadlock.wiki/Melee_Attack) and [Heavy Melee](https://deadlock.wiki/Heavy_Melee): heavy advances through windup/lunge while held. The animation windup is not proof of a tap/hold cutoff.            |
+| Dash-jump cue          | [Dash-jump page](https://deadlock.wiki/Dashing/Dash_Jumping) and [June 30, 2026 patch reproduction](https://deadlock.wiki/Update:June_30,_2026): 0.30-0.55 seconds. Some general wiki text still describes an older window. |
+| Dash-slide and release | [Dash Sliding](https://deadlock.wiki/Dashing/Dash_Sliding) and [Sliding](https://deadlock.wiki/Sliding): add crouch after dash; release cancels slide; actual sliding depends on speed/state/slope.                         |
+| Move + fire / zoom     | [Move Speed](https://deadlock.wiki/Move_Speed) and the game's `ADS` label **Zoom/Alternate Fire**: do not generalize one hero's RMB behavior to every hero.                                                                 |
+| Souls                  | [Floating soul orbs](https://deadlock.wiki/Souls#Floating_orbs): ranged last-hit follow-up versus melee-secured last hits.                                                                                                  |
+| Urn/parry              | [Soul Urn](https://deadlock.wiki/Soul_Urn) and the June 30 reference: urn carriers cannot parry or manually drop the urn. No obsolete “parry key drops urn” drill is taught.                                                |
+| Browser capture        | [Keyboard Lock API](https://developer.mozilla.org/en-US/docs/Web/API/Keyboard/lock): support and OS-granted keys vary.                                                                                                      |
+
+The patch reproduction links to [Valve's announcement](https://steamcommunity.com/games/1422450/announcements/detail/688635449342692004). Its full body was not independently extractable during research; patch details above rely on the community reproduction. References can change and are not a guarantee that this trainer tracks every patch.
 
 ## Your Keybinds
 
-The initial controls follow the general key mappings observed during setup, including `Q` melee, `F` parry, `Shift` dash, `Ctrl` crouch, `Space` jump, `1`-`4` abilities, and `Z`/`X`/`C`/`V` active items. Check these against your current in-game settings, since Deadlock updates can change controls.
+The initial controls follow general mappings observed during setup, including `Q` melee, `F` parry, `Shift` dash, `Ctrl` crouch, `Space` jump, `1`-`4` abilities, `Z`/`X`/`C`/`V` active items, left mouse fire, and right mouse zoom/alternate fire. Check these against your settings. Hold-input drills assume hold-to-crouch, not a toggle-crouch configuration.
 
 - Open **Your keybinds**, or click **EDIT** beside the quick reference.
-- Click an action's key, then press a new key. Hold a modifier with a letter or number for a combination, or press and release a modifier to bind it on its own.
+- Click an action's key, then press a new key. Hold a modifier with a letter/number for a combination, or press and release a modifier alone. To bind a mouse button, click the listening keycap again with that button.
 - Press `Escape` to cancel rebinding. Browser and operating-system shortcuts may not be capturable; plain letters and numbers are the most reliable choices. Function keys, Tab, Escape, and system-key shortcuts are not offered for manual rebinding.
 - Use **Reset defaults** to restore the starting controls. Changing a binding here never changes Deadlock itself.
 
@@ -109,7 +153,7 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-Unit tests cover input normalization, binding imports, scenario definitions, moving-target hit detection, held-key coordination, saved-data validation, and statistics. Browser tests cover scoring, session completion, pause/resume, lane sequences, custom movement bindings, rebinding, imports, saved progress, storage failure, and desktop/mobile layouts.
+Unit tests cover native-shaped keyboard events, simultaneous physical input state, both Shift keys, mouse chords, tap/hold/release grading, repeats, binding imports, scenario definitions, fallback geometry, saved-data validation, and statistics. Browser tests exercise continuous heavy holds, interrupted overlaps, diagonal movement, crouch release, simultaneous mouse buttons, custom bindings, firing/reload, pause/reset, 3D targeting, capture, WebGL fallback, saved progress, and desktop/mobile layouts.
 
 ## Code Layout
 
@@ -117,9 +161,12 @@ Unit tests cover input normalization, binding imports, scenario definitions, mov
 - `src/main.ts`: session lifecycle, DOM updates, and browser input handling.
 - `src/trainer.ts`: action catalog, physical-key normalization, binding parser, and statistics.
 - `src/drills.ts`: lane scenario definitions, held-key rules, and target geometry.
+- `src/input.ts`: physical keyboard/mouse state and the pure tap/hold/chord/release evaluator.
+- `src/range.ts`: original Three.js lane, shoulder camera, movement cues, target meshes, and raycasts.
 - `src/storage.ts`: typed settings/history validation and local persistence.
 - `src/style.css`: responsive visuals and reduced-motion styling.
-- `src/*.test.ts` and `tests/trainer.spec.ts`: pure logic tests and browser regression tests.
+- `src/combat.css`: game-oriented practice HUD and fullscreen range styling.
+- `src/*.test.ts` and `tests/*.spec.ts`: pure logic tests and browser regression tests.
 
 ## Agent Access
 

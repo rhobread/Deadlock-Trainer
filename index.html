@@ -36,16 +36,10 @@
             ><span>Soul practice<small>Secure and deny souls</small></span
             ><span class="nav-number">02</span>
           </button>
-          <button
-            class="nav-item"
-            data-mode="mixed"
-            aria-label="Lane situations"
-          >
+          <button class="nav-item" data-mode="mixed" aria-label="Combat range">
             <span class="nav-icon" aria-hidden="true">↯</span
             ><span
-              >Lane situations<small
-                >Practice decisions and sequences</small
-              ></span
+              >Combat range<small>Hold, overlap, aim and release</small></span
             ><span class="nav-number">03</span>
           </button>
         </nav>
@@ -92,6 +86,7 @@
               tabindex="-1"
               aria-label="Training area"
             >
+              <canvas id="range-canvas" aria-hidden="true"></canvas>
               <div class="arena-grid"></div>
               <div class="arena-corner corner-tl"></div>
               <div class="arena-corner corner-tr"></div>
@@ -117,6 +112,10 @@
                 <h2 id="prompt-label" aria-live="polite" role="status"></h2>
                 <div id="key-hint"></div>
                 <p id="prompt-tip"></p>
+                <div id="goal-meter" class="goal-meter" hidden>
+                  <div id="goal-meter-fill"></div>
+                </div>
+                <span id="goal-status" class="goal-status"></span>
               </div>
               <div id="target-context" class="target-context" hidden>
                 <strong
@@ -130,11 +129,70 @@
               <button
                 id="soul"
                 class="soul"
+                tabindex="-1"
                 aria-label="Shoot soul target"
                 hidden
               >
                 <span></span>
               </button>
+              <div id="range-hud" class="range-hud" hidden>
+                <div class="range-toolbar">
+                  <span id="range-status"
+                    >FREE CURSOR · ORIGINAL PRACTICE RANGE</span
+                  ><button id="mouse-look" type="button">Capture mouse</button
+                  ><button id="fullscreen-button" type="button">
+                    Fullscreen
+                  </button>
+                </div>
+                <div class="range-map" aria-hidden="true">
+                  <span>RANGE MAP</span><i></i><b></b>
+                </div>
+                <div id="crosshair" class="crosshair" aria-hidden="true">
+                  <i></i><span>JUMP</span>
+                </div>
+                <div class="held-readout">
+                  <span>HELD NOW</span>
+                  <div
+                    id="held-inputs"
+                    aria-label="Currently held inputs"
+                  ></div>
+                </div>
+                <div class="combat-hud">
+                  <div class="hud-health">
+                    <span>TRAINING PARTNER</span
+                    ><strong>100<span>%</span></strong>
+                    <div class="health-track"><i></i></div>
+                    <small>HEALTH DISPLAY · NO DAMAGE MODEL</small>
+                  </div>
+                  <div class="hud-loadout">
+                    <div
+                      id="hud-items"
+                      class="hud-items"
+                      aria-label="Active item bindings"
+                    ></div>
+                    <div
+                      id="hud-abilities"
+                      class="hud-abilities"
+                      aria-label="Ability bindings"
+                    ></div>
+                    <div
+                      id="hud-movement"
+                      class="hud-movement"
+                      aria-label="Movement bindings"
+                    ></div>
+                  </div>
+                  <div class="hud-ammo">
+                    <span>PRACTICE WEAPON</span
+                    ><strong id="hud-ammo-count">12 <small>/ 12</small></strong>
+                    <div id="hud-reload"></div>
+                    <small>HOLD FIRE · HERO-NEUTRAL CADENCE</small>
+                  </div>
+                </div>
+                <div class="range-disclaimer">
+                  ORIGINAL RANGE · TRAINING TIMINGS · NOT DEADLOCK PHYSICS OR
+                  BALANCE
+                </div>
+              </div>
               <div
                 id="feedback"
                 class="feedback"
@@ -263,6 +321,42 @@
                   aria-label="Show key hints"
                 />
               </div>
+              <div id="combat-settings" hidden>
+                <div class="hint-setting safe-crouch-setting">
+                  <div>
+                    <label for="safe-crouch">Browser-safe crouch</label>
+                    <p>
+                      Use CapsLock for Ctrl-based crouch in combat drills only.
+                      Your game binding stays unchanged.
+                    </p>
+                  </div>
+                  <input
+                    id="safe-crouch"
+                    type="checkbox"
+                    role="switch"
+                    aria-label="Use CapsLock for Ctrl crouch chords"
+                  />
+                </div>
+                <p class="shortcut-warning">
+                  Ctrl+W can close your tab. Keyboard capture is
+                  browser-dependent; fullscreen alone is not a guarantee. Leave
+                  safe crouch on unless you understand these shortcuts.
+                </p>
+                <div class="setting-block">
+                  <label for="sensitivity">MOUSE-LOOK SPEED</label
+                  ><input
+                    id="sensitivity"
+                    type="range"
+                    min="0.25"
+                    max="2"
+                    step="0.05"
+                  />
+                  <p>
+                    Trainer-only camera speed, not an in-game sensitivity
+                    conversion.
+                  </p>
+                </div>
+              </div>
             </fieldset>
             <div class="quick-reference" id="quick-reference">
               <div class="reference-heading">
@@ -328,8 +422,10 @@
           </button>
         </div>
         <p>
-          Click a key, then press your preferred binding. Escape cancels.
-          Changes only affect this trainer.
+          Click a key, then press your preferred binding. Click the listening
+          keycap again with a mouse button to bind it. Escape cancels. Changes
+          only affect this trainer. The browser-safe crouch option is a separate
+          trainer-only override.
         </p>
         <div class="import-row">
           <button id="import-bindings" class="secondary-button">

@@ -1,4 +1,5 @@
 import { ACTIONS, keyFromEvent, type Action } from "./trainer";
+import { SCENARIOS } from "./drills";
 
 export type Mode = "recall" | "aim" | "mixed";
 export type Difficulty = "rookie" | "regular" | "sharp";
@@ -10,6 +11,8 @@ export type Settings = {
   group: "all" | Action["group"];
   bindings: Record<string, string>;
   scenario: string;
+  safeCrouch: boolean;
+  sensitivity: number;
 };
 export type Result = {
   mode: Mode;
@@ -29,6 +32,8 @@ export const DEFAULT_SETTINGS: Settings = {
   group: "all",
   bindings: {},
   scenario: "all",
+  safeCrouch: true,
+  sensitivity: 1,
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -139,17 +144,18 @@ export function loadState(storage: Pick<Storage, "getItem"> | null): {
       settings.group = s.group;
     if (
       typeof s.scenario === "string" &&
-      [
-        "all",
-        "secure",
-        "deny",
-        "parry",
-        "dash-jump",
-        "reload",
-        "strafe",
-      ].includes(s.scenario)
+      (s.scenario === "all" ||
+        SCENARIOS.some((scenario) => scenario.id === s.scenario))
     )
       settings.scenario = s.scenario;
+    if (typeof s.safeCrouch === "boolean") settings.safeCrouch = s.safeCrouch;
+    if (
+      typeof s.sensitivity === "number" &&
+      Number.isFinite(s.sensitivity) &&
+      s.sensitivity >= 0.25 &&
+      s.sensitivity <= 2
+    )
+      settings.sensitivity = s.sensitivity;
     if (isRecord(s.bindings)) {
       for (const { id } of ACTIONS) {
         if (Object.hasOwn(s.bindings, id) && trainableBinding(s.bindings[id]))

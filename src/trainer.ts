@@ -61,14 +61,28 @@ export const ACTIONS: Action[] = [
     label: "Melee",
     key: "Q",
     group: "combat",
-    tip: "Use melee against a nearby opponent.",
+    tip: "Tap for light melee; hold through the windup for heavy melee.",
   },
   {
     id: "HeldItem",
     label: "Parry",
     key: "F",
     group: "combat",
-    tip: "Parry an incoming melee attack. This key handles the urn when carried.",
+    tip: "Parry an incoming melee attack. Urn carriers cannot parry.",
+  },
+  {
+    id: "Attack",
+    label: "Fire",
+    key: "MOUSE1",
+    group: "combat",
+    tip: "Fire your weapon while keeping your aim and movement under control.",
+  },
+  {
+    id: "ADS",
+    label: "Zoom / Alt Fire",
+    key: "MOUSE2",
+    group: "combat",
+    tip: "Hero-dependent zoom or alternate fire. This range uses a zoom-capable practice weapon.",
   },
   {
     id: "Reload",
@@ -233,6 +247,11 @@ const namedKeys = new Set([
   "NUMPADDECIMAL",
   "NUMPADENTER",
   "NUMPADEQUAL",
+  "MOUSE1",
+  "MOUSE2",
+  "MOUSE3",
+  "MOUSE4",
+  "MOUSE5",
 ]);
 
 function normalizeKey(value: string): string {
@@ -277,6 +296,11 @@ export function keyFromEvent(
 
 export function displayKey(key: string): string {
   const labels: Record<string, string> = {
+    MOUSE1: "LMB",
+    MOUSE2: "RMB",
+    MOUSE3: "MMB",
+    MOUSE4: "Mouse 4",
+    MOUSE5: "Mouse 5",
     CTRL: "Ctrl",
     ALT: "Alt",
     SHIFT: "Shift",
@@ -386,7 +410,7 @@ export function parseBindings(text: string): Record<string, string> {
   }
   if (stack.length !== 1) throw new Error("Unclosed bindings block.");
   if (Object.keys(bindings).length === 0)
-    throw new Error("No supported valid keyboard bindings found.");
+    throw new Error("No supported valid input bindings found.");
   return bindings;
 }
 

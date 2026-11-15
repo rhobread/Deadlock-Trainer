@@ -1,10 +1,10 @@
 import { test, expect, type Page } from "@playwright/test";
 
 async function openTrainer(page: Page) {
-  await page.clock.install();
+  await page.clock.install({ time: new Date("2026-11-15T12:00:00Z") });
+  // Freeze before loading WebGL; GPU startup must not race a short pauseAt deadline.
+  await page.clock.pauseAt(new Date("2026-11-15T12:01:00Z"));
   await page.goto("/");
-  // Advance timers explicitly so a slow test machine cannot expire a target mid-assertion.
-  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
 }
 
 async function pressPrompt(page: Page) {
@@ -16,10 +16,18 @@ async function pressPrompt(page: Page) {
     Control: "Control",
     Alt: "Alt",
   };
+  if (["LMB", "RMB", "MMB"].includes(key)) {
+    await page.locator("#arena").click({
+      position: { x: 200, y: 300 },
+      button: key === "RMB" ? "right" : key === "MMB" ? "middle" : "left",
+    });
+    return;
+  }
   await page.keyboard.press(codes[key] || key);
 }
 
 async function shootTarget(page: Page) {
+  await page.clock.runFor(180);
   const box = await page.locator("#soul").boundingBox();
   expect(box).not.toBeNull();
   await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
@@ -68,7 +76,7 @@ test("wrong keys, hidden hints, and automatic time limit", async ({ page }) => {
   await expect(page.locator("#key-hint")).toHaveText("TRUST YOUR HANDS");
   await page.keyboard.press("k");
   await expect(page.locator("#stat-accuracy")).toHaveText("0%");
-  await page.clock.runFor(30_100);
+  await page.clock.fastForward(30_100);
   await expect(page.getByRole("heading", { name: "Nice work." })).toBeVisible();
   await expect(page.locator("#stat-time")).toHaveText("00:00");
 });
@@ -80,7 +88,7 @@ test("aim scores targets and misses; lane practice requires movement while shoot
   await page.locator('[data-mode="aim"]').click();
   await page.getByRole("button", { name: "Start training" }).click();
   await expect(page.locator("#soul")).toBeVisible();
-  await page.locator("#arena").click({ position: { x: 8, y: 8 } });
+  await page.locator("#arena").click({ position: { x: 8, y: 350 } });
   await expect(page.locator("#stat-accuracy")).toHaveText("0%");
   await shootTarget(page);
   await expect(page.locator("#stat-hits")).toHaveText("01");
@@ -152,10 +160,15 @@ test("dash-jump accepts jump while dash is held and parry cues use real action k
     .getByLabel("LANE SITUATION", { exact: true })
     .selectOption("dash-jump");
   await page.getByRole("button", { name: "Start training" }).click();
+  await page.keyboard.down("KeyW");
   await page.keyboard.down("Shift");
-  await expect(page.locator("#prompt-label")).toHaveText("Jump / Mantle");
+  await expect(page.locator("#prompt-label")).toHaveText(
+    "Jump on the blue cue",
+  );
+  await page.clock.runFor(350);
   await page.keyboard.press("Space");
   await page.keyboard.up("Shift");
+  await page.keyboard.up("KeyW");
   await expect(page.locator("#stat-hits")).toHaveText("02");
   await expect(page.locator("#stat-accuracy")).toHaveText("100%");
   await page.keyboard.press("Escape");
@@ -297,6 +310,8 @@ test("modifier key practice does not count the modifier prefix as a mistake", as
             HeldItem: "SHIFT+Q",
             Reload: "SHIFT+Q",
             Interact: "SHIFT+Q",
+            Attack: "SHIFT+Q",
+            ADS: "SHIFT+Q",
           },
         },
       }),
@@ -372,7 +387,7 @@ test("compact navigation has accessible names and import is keyboard operable", 
     page.getByRole("button", { name: "Soul practice", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Lane situations", exact: true }),
+    page.getByRole("button", { name: "Combat range", exact: true }),
   ).toBeVisible();
   await page
     .getByRole("button", { name: "Your keybinds", exact: true })
@@ -426,10 +441,15 @@ test("dash-jump accepts custom Ctrl dash while the modifier remains held", async
   );
   await openTrainer(page);
   await page.getByRole("button", { name: "Start training" }).click();
+  await page.keyboard.down("KeyW");
   await page.keyboard.down("Control");
-  await expect(page.locator("#prompt-label")).toHaveText("Jump / Mantle");
+  await expect(page.locator("#prompt-label")).toHaveText(
+    "Jump on the blue cue",
+  );
+  await page.clock.runFor(350);
   await page.keyboard.press("Space");
   await page.keyboard.up("Control");
+  await page.keyboard.up("KeyW");
   await expect(page.locator("#stat-hits")).toHaveText("02");
   await expect(page.locator("#stat-accuracy")).toHaveText("100%");
 });
