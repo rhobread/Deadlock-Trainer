@@ -372,7 +372,7 @@ test("compact navigation has accessible names and import is keyboard operable", 
     page.getByRole("button", { name: "Soul practice", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Mixed training", exact: true }),
+    page.getByRole("button", { name: "Lane situations", exact: true }),
   ).toBeVisible();
   await page
     .getByRole("button", { name: "Your keybinds", exact: true })
