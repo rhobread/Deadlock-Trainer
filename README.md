@@ -57,6 +57,8 @@ The 3D lane contains a shoulder-view training character, target troopers, rising
 - **HUD:** ability/item slots and bindings respond to held inputs. Health is display-only; the mini-map is a schematic. There is no damage or stamina balance simulation.
 - **Fallback:** without WebGL, targeting falls back to the local 2D drill. Hold/chord rules still work. Reduced-motion settings stop soul drift and camera bob.
 
+**Resource use:** 3D practice uses your CPU/GPU, so it is heavier than a static page. The continuous scene loop is capped at 60 draws per second, mouse movement is batched into those frames, and rendering uses single-pixel-density output without multisample antialiasing. Input grading still runs independently; firing and step changes can redraw immediately. Pausing, switching tabs, or moving focus away stops the animation loop. The local dev server can remain open without continuously drawing the scene.
+
 The range does **not** reproduce exact Deadlock camera offsets, sensitivity, animations, recoil, collision, slide momentum, stamina, damage, parry windows, or hero-specific alternate fire. Finish in Deadlock's sandbox. Chord drills require a physical keyboard and mouse; touch devices can use free-cursor targeting and settings.
 
 ### Combat Drills
@@ -152,6 +154,8 @@ npm run build
 npx playwright install chromium
 npm run test:e2e
 ```
+
+Browser tests run one at a time by default because software-rendered 3D Chromium tests can heavily compete with video playback. Do not run the full browser suite and a build simultaneously on a machine being used for other work. `npm test` is the lightweight logic-only check.
 
 Unit tests cover native-shaped keyboard events, simultaneous physical input state, both Shift keys, mouse chords, tap/hold/release grading, repeats, binding imports, scenario definitions, fallback geometry, saved-data validation, and statistics. Browser tests exercise continuous heavy holds, interrupted overlaps, diagonal movement, crouch release, simultaneous mouse buttons, custom bindings, firing/reload, pause/reset, 3D targeting, capture, WebGL fallback, saved progress, and desktop/mobile layouts.
 

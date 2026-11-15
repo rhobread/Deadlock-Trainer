@@ -38,3 +38,4 @@ A standalone browser warm-up app for new Deadlock players. Train physical key re
 - Current urn references say carriers cannot parry or manually drop the urn; do not infer live mechanics from legacy `Parry/Drop Urn` labels. Record sources and research limitations in README.
 - Escape pauses; leaving the page pauses automatically. No global keyboard listeners outside active practice or explicit rebinding.
 - Validate with unit tests, a production build, and browser interaction tests before delivery.
+- Software-rendered 3D browser tests can contend with video playback. Keep the default single browser worker, run builds and browser suites serially, and use targeted lightweight checks for small fixes rather than repeatedly launching the full 3D matrix while the user is working.

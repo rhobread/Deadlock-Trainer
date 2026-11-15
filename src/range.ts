@@ -62,10 +62,11 @@ export class PracticeRange {
     try {
       this.renderer = new THREE.WebGLRenderer({
         canvas,
-        antialias: true,
+        antialias: false,
         alpha: false,
+        powerPreference: "low-power",
       });
-      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      this.renderer.setPixelRatio(1);
       this.renderer.outputColorSpace = THREE.SRGBColorSpace;
       this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
       this.renderer.toneMappingExposure = 1.25;

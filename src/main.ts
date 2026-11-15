@@ -97,6 +97,9 @@ const range = new PracticeRange(el<HTMLCanvasElement>("range-canvas"));
 let goalProgress = 0;
 let activeTime = 0;
 let lastFrameTime = 0;
+const rangeFrameInterval = 1000 / 60;
+let rangeFrameBudget = rangeFrameInterval;
+let pendingRangeDelta = 0;
 let ammo = 12;
 let reloadingUntil = 0;
 let nextShotAt = 0;
@@ -417,7 +420,6 @@ function nextTask(now: number) {
         : `${displayKey(actionBinding("Attack"))} FIRE / ${displayKey(actionBinding("ADS"))} ZOOM`,
     );
     soul.style.width = soul.style.height = `${target.radius * 2}px`;
-    renderRange(now, 0);
   }
   renderRange(now, 0);
   showPhase();
@@ -665,8 +667,10 @@ function record(success: boolean, now: number, advance = true) {
 }
 function tick(now: number) {
   if (phase !== "running") return;
-  const delta = Math.max(0, Math.min(0.05, (now - lastFrameTime) / 1000));
-  activeTime += Math.max(0, now - lastFrameTime);
+  const elapsed = Math.max(0, now - lastFrameTime);
+  pendingRangeDelta += Math.min(0.05, elapsed / 1000);
+  rangeFrameBudget += elapsed;
+  activeTime += elapsed;
   lastFrameTime = now;
   remaining = Math.max(0, deadline - now);
   if (remaining <= 0) {
@@ -684,7 +688,12 @@ function tick(now: number) {
   }
   if (now >= promptDeadline) record(false, now);
   if (task === "input") updateGoal(now);
-  renderRange(now, delta);
+  // Keep input grading responsive on high-refresh displays without drawing every refresh.
+  if (rangeFrameBudget >= rangeFrameInterval) {
+    rangeFrameBudget %= rangeFrameInterval;
+    renderRange(now, pendingRangeDelta);
+    pendingRangeDelta = 0;
+  }
   if (task === "target" && actionHeld("Attack") && activeTime >= nextShotAt)
     shoot(now);
   frame = requestAnimationFrame(tick);
@@ -705,6 +714,8 @@ function start() {
   range.resize();
   activeTime = 0;
   lastFrameTime = performance.now();
+  rangeFrameBudget = rangeFrameInterval;
+  pendingRangeDelta = 0;
   ammo = 12;
   reloadingUntil = nextShotAt = meleeFlashUntil = parryFlashUntil = 0;
   pointer = { x: arenaBounds().width / 2, y: arenaBounds().height / 2 };
@@ -743,6 +754,8 @@ function resume() {
   promptStarted += pausedFor;
   promptDeadline += pausedFor;
   lastFrameTime = now;
+  rangeFrameBudget = rangeFrameInterval;
+  pendingRangeDelta = 0;
   phase = "running";
   if (step?.kind === "input" && step.timedJump) {
     scenarioStep = 0;
@@ -1075,22 +1088,22 @@ el("arena").addEventListener("pointerdown", (event) => {
   if (event.pointerType !== "mouse") handleButtonDown(event);
 });
 function updatePointer(event: MouseEvent) {
-  const rect = el("arena").getBoundingClientRect();
   if (document.pointerLockElement === el("range-canvas"))
     range.look(
       event.movementX * settings.sensitivity,
       event.movementY * settings.sensitivity,
     );
-  else
+  else {
+    const rect = el("arena").getBoundingClientRect();
     pointer = {
       x: event.clientX - rect.left - el("arena").clientLeft,
       y: event.clientY - rect.top - el("arena").clientTop,
     };
+  }
 }
 el("arena").addEventListener("pointermove", (event) => {
   if (phase === "running") {
     updatePointer(event);
-    renderRange(performance.now(), 0);
   }
 });
 function handleButtonUp(event: MouseEvent) {
