@@ -19,6 +19,7 @@ async function openCombat(
   await page.clock.pauseAt(new Date("2026-11-15T12:01:00Z"));
   await page.goto("/");
   await page.getByRole("button", { name: "Start training" }).click();
+  await expect(page.locator("#arena")).toHaveClass(/is-running/);
 }
 
 async function shoot(page: Page) {

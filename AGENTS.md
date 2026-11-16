@@ -29,6 +29,7 @@ A standalone browser warm-up app for new Deadlock players. Train physical key re
 
 - Settings, bindings, and recent session summaries live only in browser localStorage.
 - Aim training uses a simplified third-person range with a 2D fallback, not matched in-game sensitivity, recoil, movement, or mechanics.
+- Keep Basic Manual's single-key, click-target, and alternating drills alongside the 3D modes. Basic practice must not initialize or download the 3D renderer, require weapon reloads, or turn held clicks into auto-fire. Preserve existing saved modes and bindings when adding modes.
 - Lane situations rehearse real action mappings and input order, not exact parry/dash timing, stamina, collision, damage, or hero-specific tactics. Keep scenario definitions separate from rendering and saved-data validation.
 - Ranged last-hit drills may lead into a soul shot; do not teach a soul shot after a melee last hit. Soul colors and motion are training cues, not game-accurate visuals or physics.
 - Heavy melee commits while held; release only re-arms a later input. Light-tap grading on release is a trainer duration check, not a claim that the game fires light attacks on release. Label training thresholds and patch-sensitive dash-jump cues clearly.

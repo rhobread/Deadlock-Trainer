@@ -37,8 +37,29 @@ import {
   type Settings,
 } from "./storage";
 import { GoalEvaluator, InputState, type InputEdge } from "./input";
-import { PracticeRange } from "./range";
+import type { PracticeRange } from "./range";
 const MODES = {
+  "basic-keys": {
+    title: "Basic keybinds",
+    subtitle: "Learn the buttons first.",
+    description:
+      "A simple action prompt and its key. Press the matching keyboard or mouse button, one input at a time.",
+    tag: "BASIC MANUAL / KEY PROMPTS",
+  },
+  "basic-aim": {
+    title: "Basic click targets",
+    subtitle: "Point. Click. Repeat.",
+    description:
+      "Click stationary 2D targets. No camera movement, weapon reloads, or held-input combinations.",
+    tag: "BASIC MANUAL / CLICK TARGETS",
+  },
+  "basic-mixed": {
+    title: "Basic mixed practice",
+    subtitle: "Keys and clicks, one at a time.",
+    description:
+      "Alternate a keybind prompt with a click target. The original simple warm-up, without loading 3D.",
+    tag: "BASIC MANUAL / KEYS + CLICKS",
+  },
   recall: {
     title: "Keybind recall",
     subtitle: "Think less. React more.",
@@ -93,7 +114,8 @@ let previousScenarioId: string | undefined;
 let step: DrillStep | null = null;
 const input = new InputState();
 const evaluator = new GoalEvaluator((actionId) => actionBinding(actionId));
-const range = new PracticeRange(el<HTMLCanvasElement>("range-canvas"));
+let range: PracticeRange | null = null;
+let starting = false;
 let goalProgress = 0;
 let activeTime = 0;
 let lastFrameTime = 0;
@@ -119,6 +141,12 @@ function el<T extends HTMLElement = HTMLElement>(id: string): T {
 }
 function text(id: string, value: string) {
   el(id).textContent = value;
+}
+function isBasicMode(mode: Mode = settings.mode) {
+  return mode.startsWith("basic-");
+}
+function has3DRange() {
+  return !isBasicMode() && !!range?.available;
 }
 function save() {
   storageAvailable = saveState(storage, settings, history);
@@ -170,11 +198,17 @@ function updateSetup() {
   text("arena-subtitle", mode.subtitle);
   text(
     "arena-instructions",
-    settings.mode === "aim"
-      ? "Souls rise after a ranged last hit.\nFind them, then click before they fade."
-      : settings.mode === "mixed"
-        ? "A third-person range for actual input overlap.\nHold melee. Keep moving. Crouch, aim and fire together."
-        : "An action appears. You press the key.\nSimple reps for a sharper game.",
+    settings.mode === "basic-aim"
+      ? "Click the target with your left mouse button.\nNo holds, camera controls, or reloads."
+      : settings.mode === "basic-mixed"
+        ? "Press the prompted key, then click the target.\nOne input at a time. No combos required."
+        : settings.mode === "basic-keys"
+          ? "Read the action. Press its key or mouse button.\nKeep hints on while learning the controls."
+          : settings.mode === "aim"
+            ? "Souls rise after a ranged last hit.\nFind them, then click before they fade."
+            : settings.mode === "mixed"
+              ? "A third-person range for actual input overlap.\nHold melee. Keep moving. Crouch, aim and fire together."
+              : "An action appears. You press the key.\nSimple reps for a sharper game.",
   );
   document.querySelectorAll<HTMLButtonElement>("[data-mode]").forEach((b) => {
     const active = b.dataset.mode === settings.mode;
@@ -192,9 +226,14 @@ function updateSetup() {
   el<HTMLSelectElement>("group").value = settings.group;
   el<HTMLSelectElement>("scenario").value = settings.scenario;
   el<HTMLInputElement>("hints").checked = settings.hints;
-  el("group-setting").hidden = settings.mode !== "recall";
+  el("group-setting").hidden = ![
+    "recall",
+    "basic-keys",
+    "basic-mixed",
+  ].includes(settings.mode);
   el("scenario-setting").hidden = settings.mode !== "mixed";
-  el("hint-setting").hidden = settings.mode === "aim";
+  el("hint-setting").hidden =
+    settings.mode === "aim" || settings.mode === "basic-aim";
   el("combat-settings").hidden = settings.mode !== "mixed";
   el<HTMLInputElement>("safe-crouch").checked = settings.safeCrouch;
   el<HTMLInputElement>("sensitivity").value = String(settings.sensitivity);
@@ -215,11 +254,13 @@ function updateSetup() {
   );
   text(
     "coach-copy",
-    settings.mode === "mixed"
-      ? "Heavy melee completes while held, not on release. The third-person view and hold timings are training models, not Deadlock's engine. Safe crouch uses CapsLock instead of Ctrl in combat drills only."
-      : settings.mode === "aim"
-        ? "A 2D mouse warm-up, not an in-game sensitivity match. Use your usual mouse DPI; finish with a few minutes in the sandbox."
-        : "Start with hints on. Once the keys feel familiar, switch them off and trust your hands.",
+    isBasicMode()
+      ? "Basic Manual is lightweight 2D practice: single key prompts and left-click targets. Your 3D Combat range and hold/combo drills are still available in the sidebar."
+      : settings.mode === "mixed"
+        ? "Heavy melee completes while held, not on release. The third-person view and hold timings are training models, not Deadlock's engine. Safe crouch uses CapsLock instead of Ctrl in combat drills only."
+        : settings.mode === "aim"
+          ? "A simplified 3D mouse warm-up, not an in-game sensitivity match. Use your usual mouse DPI; finish with a few minutes in the sandbox."
+          : "Start with hints on. Once the keys feel familiar, switch them off and trust your hands.",
   );
   const refs = actions().filter((a) =>
     [
@@ -270,28 +311,32 @@ function showPhase() {
   el("situation-banner").hidden =
     phase !== "running" || settings.mode !== "mixed";
   el("arena-bottom").hidden = phase === "running";
-  el("range-hud").hidden = phase !== "running";
-  el("arena").classList.toggle("has-range", range.available);
+  el("range-hud").hidden = phase !== "running" || isBasicMode();
+  el("range-canvas").hidden = isBasicMode();
+  el("arena").classList.toggle("has-range", has3DRange());
+  el("arena").classList.toggle("basic-mode", isBasicMode());
   el("arena").classList.toggle("combat-mode", settings.mode === "mixed");
   el<HTMLButtonElement>("pause-button").disabled = phase !== "running";
-  el<HTMLFieldSetElement>("settings-fields").disabled =
-    phase === "running" || phase === "paused";
+  const busy = starting || phase === "running" || phase === "paused";
+  el<HTMLFieldSetElement>("settings-fields").disabled = busy;
+  el<HTMLButtonElement>("start-button").disabled = starting;
+  el<HTMLButtonElement>("again-button").disabled = starting;
   document
     .querySelectorAll<HTMLButtonElement>("[data-mode]")
-    .forEach((b) => (b.disabled = phase === "running" || phase === "paused"));
-  el<HTMLButtonElement>("bindings-button").disabled =
-    phase === "running" || phase === "paused";
-  el<HTMLButtonElement>("edit-bindings").disabled =
-    phase === "running" || phase === "paused";
+    .forEach((b) => (b.disabled = busy));
+  el<HTMLButtonElement>("bindings-button").disabled = busy;
+  el<HTMLButtonElement>("edit-bindings").disabled = busy;
   text(
     "arena-label",
-    phase === "running"
-      ? "SESSION IN PROGRESS"
-      : phase === "paused"
-        ? "SESSION PAUSED"
-        : phase === "finished"
-          ? "SESSION COMPLETE"
-          : "READY WHEN YOU ARE",
+    starting
+      ? "LOADING 3D RANGE"
+      : phase === "running"
+        ? "SESSION IN PROGRESS"
+        : phase === "paused"
+          ? "SESSION PAUSED"
+          : phase === "finished"
+            ? "SESSION COMPLETE"
+            : "READY WHEN YOU ARE",
   );
   el("arena").classList.toggle("is-running", phase === "running");
   updateHud();
@@ -310,7 +355,13 @@ function nextTask(now: number) {
       "situation-banner",
       `${scenario.title} / ${scenarioStep} OF ${scenario.steps.length}`,
     );
-  } else task = settings.mode === "aim" ? "target" : "key";
+  } else
+    task =
+      settings.mode === "aim" ||
+      settings.mode === "basic-aim" ||
+      (settings.mode === "basic-mixed" && taskIndex++ % 2 === 1)
+        ? "target"
+        : "key";
   promptStarted = now;
   const level = LEVELS[settings.difficulty];
   promptDeadline = now + (task === "key" ? level.lifetime * 2 : level.lifetime);
@@ -321,7 +372,7 @@ function nextTask(now: number) {
   if (step?.kind === "input") {
     current = null;
     target = null;
-    range.setTarget(null);
+    range?.setTarget(null);
     el("goal-meter").dataset.kind = step.timedJump
       ? "jump"
       : step.goal.behavior;
@@ -348,7 +399,7 @@ function nextTask(now: number) {
     return;
   }
   if (task === "key") {
-    range.setTarget(null);
+    range?.setTarget(null);
     const pool = actions().filter(
       (a) => settings.group === "all" || a.group === settings.group,
     );
@@ -368,8 +419,9 @@ function nextTask(now: number) {
   } else {
     const arena = el("arena");
     const margin = level.radius + 38;
-    const kind =
-      step?.kind === "target"
+    const kind = isBasicMode()
+      ? "secure"
+      : step?.kind === "target"
         ? step.target
         : taskIndex++ % 2 === 0
           ? "secure"
@@ -388,36 +440,46 @@ function nextTask(now: number) {
       radius: level.radius,
       kind,
     };
-    range.setTarget(kind, level.radius / 29, !!lastHit);
+    range?.setTarget(kind, level.radius / 29, !!lastHit);
     const soul = el("soul");
     soul.dataset.kind = kind;
     soul.setAttribute(
       "aria-label",
-      kind === "trooper" ? "Shoot trooper target" : "Shoot soul target",
+      isBasicMode()
+        ? "Click practice target"
+        : kind === "trooper"
+          ? "Shoot trooper target"
+          : "Shoot soul target",
     );
     text(
       "target-label",
-      kind === "trooper"
-        ? "Land the ranged last hit"
-        : kind === "secure"
-          ? "Secure your soul"
-          : "Deny the enemy soul",
+      isBasicMode()
+        ? "Click the target"
+        : kind === "trooper"
+          ? "Land the ranged last hit"
+          : kind === "secure"
+            ? "Secure your soul"
+            : "Deny the enemy soul",
     );
     text(
       "target-tip",
-      step?.cue ||
-        (kind === "secure"
-          ? "Your ranged last hit released this soul. Shoot to secure it."
-          : "The enemy's ranged last hit released this soul. Shoot to deny it."),
+      isBasicMode()
+        ? "One left click. Then the next prompt."
+        : step?.cue ||
+            (kind === "secure"
+              ? "Your ranged last hit released this soul. Shoot to secure it."
+              : "The enemy's ranged last hit released this soul. Shoot to deny it."),
     );
     const required = requiredActions();
     text(
       "hold-hint",
-      required.length
-        ? settings.hints
-          ? `HOLD ${required.map((a) => displayKey(a.key)).join(" + ")} WHILE FIRING`
-          : `KEEP ${required.map((a) => a.label.toUpperCase()).join(" + ")} HELD WHILE FIRING`
-        : `${displayKey(actionBinding("Attack"))} FIRE / ${displayKey(actionBinding("ADS"))} ZOOM`,
+      isBasicMode()
+        ? "LEFT CLICK / SIMPLE 2D PRACTICE"
+        : required.length
+          ? settings.hints
+            ? `HOLD ${required.map((a) => displayKey(a.key)).join(" + ")} WHILE FIRING`
+            : `KEEP ${required.map((a) => a.label.toUpperCase()).join(" + ")} HELD WHILE FIRING`
+          : `${displayKey(actionBinding("Attack"))} FIRE / ${displayKey(actionBinding("ADS"))} ZOOM`,
     );
     soul.style.width = soul.style.height = `${target.radius * 2}px`;
   }
@@ -428,7 +490,7 @@ function arenaBounds() {
   return { width: el("arena").clientWidth, height: el("arena").clientHeight };
 }
 function targetElapsed(now: number) {
-  return reducedMotion.matches ? 0 : now - promptStarted;
+  return isBasicMode() || reducedMotion.matches ? 0 : now - promptStarted;
 }
 function requiredActions() {
   if (step?.kind !== "target") return [];
@@ -442,12 +504,12 @@ function renderTarget(
 ) {
   if (!target || task !== "target") return;
   const position =
-    range.available && projection
+    has3DRange() && projection
       ? projection
       : targetPosition(target, targetElapsed(now), arenaBounds());
   el("soul").style.left = `${position.x}px`;
   el("soul").style.top = `${position.y}px`;
-  if (projection && range.available) {
+  if (projection && has3DRange()) {
     el("soul").style.width = `${projection.width}px`;
     el("soul").style.height = `${projection.height}px`;
     el("soul").hidden = phase !== "running" || !projection.visible;
@@ -464,6 +526,10 @@ function renderTarget(
   );
 }
 function renderRange(now: number, delta: number) {
+  if (isBasicMode()) {
+    renderTarget(now, null);
+    return;
+  }
   const held = new Set(
     actions()
       .filter((action) => input.held(action.key))
@@ -481,15 +547,16 @@ function renderRange(now: number, delta: number) {
           : task === "input"
             ? "movement"
             : "none";
-  const projection = range.render({
-    now: activeTime,
-    delta,
-    running: phase === "running",
-    actions: held,
-    cue,
-    progress: activeTime < meleeFlashUntil ? 1 : goalProgress,
-    reducedMotion: reducedMotion.matches,
-  });
+  const projection =
+    range?.render({
+      now: activeTime,
+      delta,
+      running: phase === "running",
+      actions: held,
+      cue,
+      progress: activeTime < meleeFlashUntil ? 1 : goalProgress,
+      reducedMotion: reducedMotion.matches,
+    }) ?? null;
   renderTarget(now, projection);
   const center = document.pointerLockElement === el("range-canvas");
   el("crosshair").style.left =
@@ -583,6 +650,7 @@ function inputExpired(now: number) {
   return false;
 }
 function renderHudBindings() {
+  if (isBasicMode()) return;
   for (const [id, group] of [
     ["hud-items", "items"],
     ["hud-abilities", "abilities"],
@@ -618,6 +686,7 @@ function renderHudBindings() {
   }
 }
 function updateHud() {
+  if (isBasicMode()) return;
   const keys = [...input.keys];
   el("held-inputs").replaceChildren(
     ...keys.map((key) => {
@@ -689,16 +758,40 @@ function tick(now: number) {
   if (now >= promptDeadline) record(false, now);
   if (task === "input") updateGoal(now);
   // Keep input grading responsive on high-refresh displays without drawing every refresh.
-  if (rangeFrameBudget >= rangeFrameInterval) {
+  if (!isBasicMode() && rangeFrameBudget >= rangeFrameInterval) {
     rangeFrameBudget %= rangeFrameInterval;
     renderRange(now, pendingRangeDelta);
     pendingRangeDelta = 0;
   }
-  if (task === "target" && actionHeld("Attack") && activeTime >= nextShotAt)
+  if (
+    !isBasicMode() &&
+    task === "target" &&
+    actionHeld("Attack") &&
+    activeTime >= nextShotAt
+  )
     shoot(now);
   frame = requestAnimationFrame(tick);
 }
-function start() {
+async function start() {
+  if (starting || phase === "running" || phase === "paused") return;
+  if (!isBasicMode() && !range) {
+    starting = true;
+    showPhase();
+    try {
+      const { PracticeRange } = await import("./range");
+      range = new PracticeRange(el<HTMLCanvasElement>("range-canvas"));
+    } catch {
+      feedback("3D COULD NOT LOAD. USING THE 2D FALLBACK.", false);
+    } finally {
+      starting = false;
+    }
+  }
+  text(
+    "range-status",
+    range?.available
+      ? "FREE CURSOR · ORIGINAL PRACTICE RANGE"
+      : "2D FALLBACK · WEBGL UNAVAILABLE",
+  );
   cancelAnimationFrame(frame);
   clearTimeout(feedbackTimer);
   text("feedback", "");
@@ -710,8 +803,8 @@ function start() {
   scenarioStep = 0;
   previousScenarioId = undefined;
   input.clear();
-  range.reset();
-  range.resize();
+  range?.reset();
+  range?.resize();
   activeTime = 0;
   lastFrameTime = performance.now();
   rangeFrameBudget = rangeFrameInterval;
@@ -727,6 +820,7 @@ function start() {
   stats();
   el("arena").focus();
   frame = requestAnimationFrame(tick);
+  if (document.hidden || !document.hasFocus()) pause();
 }
 function pause() {
   if (phase !== "running") return;
@@ -804,8 +898,12 @@ function finish() {
   el("again-button").focus();
 }
 function changeSetup(change: Partial<Settings>) {
-  if (phase === "running" || phase === "paused") return;
+  if (starting || phase === "running" || phase === "paused") return;
   settings = { ...settings, ...change };
+  if (isBasicMode() && range) {
+    range.dispose();
+    range = null;
+  }
   phase = "idle";
   updateSetup();
   showPhase();
@@ -867,7 +965,7 @@ document.addEventListener("visibilitychange", () => {
 window.addEventListener("blur", pause);
 window.addEventListener("resize", () => {
   if (phase === "running" && !captureTransition) pause();
-  range.resize();
+  range?.resize();
   renderRange(performance.now(), 0);
 });
 reducedMotion.addEventListener("change", pause);
@@ -979,6 +1077,7 @@ function handleKeydown(event: KeyboardEvent) {
   if (task === "target") {
     renderRange(now, 0);
     if (
+      !isBasicMode() &&
       edge.key === actionBinding("Attack").split("+").at(-1) &&
       actionHeld("Attack")
     )
@@ -1000,6 +1099,17 @@ function handleKeydown(event: KeyboardEvent) {
 function shoot(now: number) {
   if (phase !== "running" || task !== "target" || !target) return;
   if (inputExpired(now)) return;
+  if (isBasicMode()) {
+    const success = targetContains(
+      target,
+      0,
+      arenaBounds(),
+      pointer.x,
+      pointer.y,
+    );
+    record(success, now, success);
+    return;
+  }
   if (activeTime < nextShotAt) return;
   nextShotAt = activeTime + 160;
   if (reloadingUntil > activeTime || ammo <= 0) {
@@ -1027,12 +1137,13 @@ function shoot(now: number) {
     ? { x: arenaBounds().width / 2, y: arenaBounds().height / 2 }
     : pointer;
   renderRange(now, 0);
-  const success = range.available
-    ? range.hitTest(aim.x, aim.y)
+  const success = has3DRange()
+    ? range!.hitTest(aim.x, aim.y)
     : targetContains(target, targetElapsed(now), arenaBounds(), aim.x, aim.y);
   record(success, now, success);
 }
 function applyActionEdges(edge: InputEdge) {
+  if (isBasicMode()) return;
   if (edge.kind !== "down" || edge.repeat || edge.changed === false) return;
   if (
     edge.key === actionBinding("Reload").split("+").at(-1) &&
@@ -1070,7 +1181,9 @@ function handleButtonDown(event: MouseEvent) {
   applyActionEdges(edge);
   updateHud();
   if (task === "input") updateGoal(now, edge);
-  else if (
+  else if (task === "target" && isBasicMode()) {
+    if (event.button === 0) shoot(now);
+  } else if (
     task === "target" &&
     edge.key === actionBinding("Attack").split("+").at(-1) &&
     actionHeld("Attack")
@@ -1089,7 +1202,7 @@ el("arena").addEventListener("pointerdown", (event) => {
 });
 function updatePointer(event: MouseEvent) {
   if (document.pointerLockElement === el("range-canvas"))
-    range.look(
+    range?.look(
       event.movementX * settings.sensitivity,
       event.movementY * settings.sensitivity,
     );
@@ -1153,7 +1266,7 @@ function releaseCapture() {
   if (document.pointerLockElement) document.exitPointerLock();
 }
 async function captureMouse() {
-  if (phase !== "running" || !range.available) return;
+  if (phase !== "running" || !has3DRange()) return;
   try {
     await el<HTMLCanvasElement>("range-canvas").requestPointerLock();
     if (phase !== "running") {
@@ -1183,7 +1296,7 @@ el("fullscreen-button").addEventListener("click", async () => {
   try {
     if (document.fullscreenElement) await document.exitFullscreen();
     else await el("arena").requestFullscreen();
-    range.resize();
+    range?.resize();
     if (wasRunning) {
       if (phase === "paused") resume();
       await captureMouse();
@@ -1202,14 +1315,16 @@ document.addEventListener("pointerlockchange", () => {
     "range-status",
     locked
       ? "MOUSE LOOK · ESC TO PAUSE / RELEASE"
-      : range.available
+      : has3DRange()
         ? "FREE CURSOR · ORIGINAL PRACTICE RANGE"
         : "2D FALLBACK · WEBGL UNAVAILABLE",
   );
-  if (!locked && phase === "running" && !captureTransition) pause();
+  if (!locked && !isBasicMode() && phase === "running" && !captureTransition)
+    pause();
 });
 el("range-canvas").addEventListener("webglcontextlost", (event) => {
   event.preventDefault();
+  if (isBasicMode()) return;
   pause();
   feedback("3D CONTEXT LOST. RELOAD THE PAGE TO RESTORE THE RANGE.", false);
 });
@@ -1340,19 +1455,12 @@ for (const scenario of SCENARIOS) {
   option.textContent = scenario.title;
   el("scenario").append(option);
 }
-text(
-  "range-status",
-  range.available
-    ? "FREE CURSOR · ORIGINAL PRACTICE RANGE"
-    : "2D FALLBACK · WEBGL UNAVAILABLE",
-);
+text("range-status", "3D RANGE LOADS WHEN YOU START");
 updateSetup();
 showPhase();
-range.resize();
-renderRange(performance.now(), 0);
 window.addEventListener("pagehide", (event) => {
   pause();
-  if (!event.persisted) range.dispose();
+  if (!event.persisted) range?.dispose();
 });
 text(
   "storage-note",

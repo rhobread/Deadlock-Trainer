@@ -26,6 +26,11 @@ async function pressPrompt(page: Page) {
   await page.keyboard.press(codes[key] || key);
 }
 
+async function startTraining(page: Page) {
+  await page.getByRole("button", { name: "Start training" }).click();
+  await expect(page.locator("#arena")).toHaveClass(/is-running/);
+}
+
 async function shootTarget(page: Page) {
   await page.clock.runFor(180);
   const box = await page.locator("#soul").boundingBox();
@@ -40,10 +45,10 @@ test("setup, recall, pause, resume, results, and persistence", async ({
   page.on("pageerror", (e) => errors.push(e.message));
   await openTrainer(page);
   await expect(
-    page.getByRole("heading", { name: "Keybind recall." }),
+    page.getByRole("heading", { name: "Basic keybinds." }),
   ).toBeVisible();
   await page.getByRole("button", { name: "30s", exact: true }).click();
-  await page.getByRole("button", { name: "Start training" }).click();
+  await startTraining(page);
   await expect(page.locator("#practice-screen")).toBeVisible();
   await pressPrompt(page);
   await expect(page.locator("#stat-hits")).toHaveText("01");
@@ -72,7 +77,7 @@ test("wrong keys, hidden hints, and automatic time limit", async ({ page }) => {
   await openTrainer(page);
   await page.getByRole("button", { name: "30s", exact: true }).click();
   await page.getByRole("switch", { name: "Show key hints" }).uncheck();
-  await page.getByRole("button", { name: "Start training" }).click();
+  await startTraining(page);
   await expect(page.locator("#key-hint")).toHaveText("TRUST YOUR HANDS");
   await page.keyboard.press("k");
   await expect(page.locator("#stat-accuracy")).toHaveText("0%");
@@ -86,7 +91,7 @@ test("aim scores targets and misses; lane practice requires movement while shoot
 }) => {
   await openTrainer(page);
   await page.locator('[data-mode="aim"]').click();
-  await page.getByRole("button", { name: "Start training" }).click();
+  await startTraining(page);
   await expect(page.locator("#soul")).toBeVisible();
   await page.locator("#arena").click({ position: { x: 8, y: 350 } });
   await expect(page.locator("#stat-accuracy")).toHaveText("0%");
@@ -99,7 +104,7 @@ test("aim scores targets and misses; lane practice requires movement while shoot
   await page
     .getByLabel("LANE SITUATION", { exact: true })
     .selectOption("strafe");
-  await page.getByRole("button", { name: "Start training" }).click();
+  await startTraining(page);
   await page.keyboard.down("KeyD");
   await expect(page.locator("#soul")).toBeVisible();
   await shootTarget(page);
@@ -116,7 +121,7 @@ test("ranged last hit leads to a rising soul, with motion frozen during pause", 
   await page
     .getByLabel("LANE SITUATION", { exact: true })
     .selectOption("secure");
-  await page.getByRole("button", { name: "Start training" }).click();
+  await startTraining(page);
   await expect(page.locator("#soul")).toHaveAttribute("data-kind", "trooper");
   const trooperX = await page
     .locator("#soul")
@@ -159,7 +164,7 @@ test("dash-jump accepts jump while dash is held and parry cues use real action k
   await page
     .getByLabel("LANE SITUATION", { exact: true })
     .selectOption("dash-jump");
-  await page.getByRole("button", { name: "Start training" }).click();
+  await startTraining(page);
   await page.keyboard.down("KeyW");
   await page.keyboard.down("Shift");
   await expect(page.locator("#prompt-label")).toHaveText(
@@ -177,7 +182,7 @@ test("dash-jump accepts jump while dash is held and parry cues use real action k
   await page
     .getByLabel("LANE SITUATION", { exact: true })
     .selectOption("parry");
-  await page.getByRole("button", { name: "Start training" }).click();
+  await startTraining(page);
   await expect(page.locator("#prompt-tip")).toContainText("heavy melee");
   await page.keyboard.press("KeyF");
   await expect(page.locator("#prompt-label")).toHaveText("Move Backward");
@@ -201,7 +206,7 @@ test("movement-and-aim respects custom bindings and clears held keys when paused
     ),
   );
   await openTrainer(page);
-  await page.getByRole("button", { name: "Start training" }).click();
+  await startTraining(page);
   await page.keyboard.down("KeyJ");
   await expect(page.locator("#hold-hint")).toContainText("HOLD J");
   await page.keyboard.press("Escape");
@@ -270,7 +275,7 @@ test("tab changes automatically pause and layout fits viewport", async ({
     viewport: innerWidth,
   }));
   expect(width.content).toBeLessThanOrEqual(width.viewport);
-  await page.getByRole("button", { name: "Start training" }).click();
+  await startTraining(page);
   await page.evaluate(() => window.dispatchEvent(new Event("blur")));
   await expect(page.locator("#pause-screen")).toBeVisible();
   await page.screenshot({
@@ -291,7 +296,7 @@ test("blocked localStorage does not break practice", async ({ page }) => {
   await expect(page.locator("#storage-note")).toContainText(
     "STORAGE UNAVAILABLE",
   );
-  await page.getByRole("button", { name: "Start training" }).click();
+  await startTraining(page);
   await pressPrompt(page);
   await expect(page.locator("#stat-hits")).toHaveText("01");
 });
@@ -318,7 +323,7 @@ test("modifier key practice does not count the modifier prefix as a mistake", as
     );
   });
   await openTrainer(page);
-  await page.getByRole("button", { name: "Start training" }).click();
+  await startTraining(page);
   await page.keyboard.press("Shift+KeyQ");
   await expect(page.locator("#stat-hits")).toHaveText("01");
   await expect(page.locator("#stat-accuracy")).toHaveText("100%");
@@ -346,7 +351,7 @@ test("invalid saved settings fall back safely and all assets are local", async (
   );
   await openTrainer(page);
   await expect(
-    page.getByRole("heading", { name: "Keybind recall." }),
+    page.getByRole("heading", { name: "Basic keybinds." }),
   ).toBeVisible();
   await expect(page.locator("#stat-time")).toHaveText("01:00");
   await page.screenshot({
@@ -373,7 +378,7 @@ test("expired aim targets count as misses and reserved imports are rejected", as
   );
   await page.getByRole("button", { name: "All set" }).click();
   await page.locator('[data-mode="aim"]').click();
-  await page.getByRole("button", { name: "Start training" }).click();
+  await startTraining(page);
   await page.clock.runFor(3300);
   await expect(page.locator("#stat-accuracy")).toHaveText("0%");
   await expect(page.locator("#soul")).toBeVisible();
@@ -414,7 +419,7 @@ test("reduced-motion preference keeps targets still without disabling scoring", 
   await page.emulateMedia({ reducedMotion: "reduce" });
   await openTrainer(page);
   await page.locator('[data-mode="aim"]').click();
-  await page.getByRole("button", { name: "Start training" }).click();
+  await startTraining(page);
   const initial = await page
     .locator("#soul")
     .evaluate((element) => element.style.top);
@@ -440,7 +445,7 @@ test("dash-jump accepts custom Ctrl dash while the modifier remains held", async
     ),
   );
   await openTrainer(page);
-  await page.getByRole("button", { name: "Start training" }).click();
+  await startTraining(page);
   await page.keyboard.down("KeyW");
   await page.keyboard.down("Control");
   await expect(page.locator("#prompt-label")).toHaveText(
@@ -462,7 +467,7 @@ test("a timed-out lane step restarts the situation and keeps its saved selection
   await page
     .getByLabel("LANE SITUATION", { exact: true })
     .selectOption("reload");
-  await page.getByRole("button", { name: "Start training" }).click();
+  await startTraining(page);
   await page.keyboard.press("KeyA");
   await expect(page.locator("#prompt-label")).toHaveText("Reload");
   await page.clock.runFor(6500);

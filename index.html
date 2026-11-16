@@ -22,26 +22,70 @@
         >
         <div class="nav-label">YOUR TRAINING GROUND</div>
         <nav aria-label="Training modes">
-          <button
-            class="nav-item"
-            data-mode="recall"
-            aria-label="Keybind recall"
-          >
-            <span class="nav-icon" aria-hidden="true">⌘</span
-            ><span>Keybind recall<small>Build your muscle memory</small></span
-            ><span class="nav-number">01</span>
-          </button>
-          <button class="nav-item" data-mode="aim" aria-label="Soul practice">
-            <span class="nav-icon crosshair-icon" aria-hidden="true"></span
-            ><span>Soul practice<small>Secure and deny souls</small></span
-            ><span class="nav-number">02</span>
-          </button>
-          <button class="nav-item" data-mode="mixed" aria-label="Combat range">
-            <span class="nav-icon" aria-hidden="true">↯</span
-            ><span
-              >Combat range<small>Hold, overlap, aim and release</small></span
-            ><span class="nav-number">03</span>
-          </button>
+          <div class="mode-group" role="group" aria-label="Basic Manual">
+            <span class="mode-group-label">BASIC MANUAL / 2D</span>
+            <button
+              class="nav-item"
+              data-mode="basic-keys"
+              aria-label="Basic keybinds"
+            >
+              <span class="nav-icon" aria-hidden="true">A</span
+              ><span
+                >Basic keybinds<small
+                  >Simple key and button prompts</small
+                ></span
+              ><span class="nav-number">01</span>
+            </button>
+            <button
+              class="nav-item"
+              data-mode="basic-aim"
+              aria-label="Basic click targets"
+            >
+              <span class="nav-icon crosshair-icon" aria-hidden="true"></span
+              ><span
+                >Basic click targets<small>Just point and click</small></span
+              ><span class="nav-number">02</span>
+            </button>
+            <button
+              class="nav-item"
+              data-mode="basic-mixed"
+              aria-label="Basic mixed practice"
+            >
+              <span class="nav-icon" aria-hidden="true">+</span
+              ><span
+                >Basic mixed practice<small
+                  >Alternate keys and clicks</small
+                ></span
+              ><span class="nav-number">03</span>
+            </button>
+          </div>
+          <div class="mode-group" role="group" aria-label="3D Training">
+            <span class="mode-group-label">3D TRAINING / COMBAT</span>
+            <button
+              class="nav-item"
+              data-mode="recall"
+              aria-label="Keybind recall"
+            >
+              <span class="nav-icon" aria-hidden="true">⌘</span
+              ><span>Keybind recall<small>Build your muscle memory</small></span
+              ><span class="nav-number">01</span>
+            </button>
+            <button class="nav-item" data-mode="aim" aria-label="Soul practice">
+              <span class="nav-icon crosshair-icon" aria-hidden="true"></span
+              ><span>Soul practice<small>Secure and deny souls</small></span
+              ><span class="nav-number">02</span>
+            </button>
+            <button
+              class="nav-item"
+              data-mode="mixed"
+              aria-label="Combat range"
+            >
+              <span class="nav-icon" aria-hidden="true">↯</span
+              ><span
+                >Combat range<small>Hold, overlap, aim and release</small></span
+              ><span class="nav-number">03</span>
+            </button>
+          </div>
         </nav>
         <div class="sidebar-note">
           <span class="tiny-star">✳</span>

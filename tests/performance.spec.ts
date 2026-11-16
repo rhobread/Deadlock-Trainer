@@ -21,6 +21,7 @@ async function openLightweightRange(page: Page) {
   await page.goto("/");
   await page.locator('[data-mode="aim"]').click();
   await page.getByRole("button", { name: "Start training" }).click();
+  await expect(page.locator("#arena")).toHaveClass(/is-running/);
 }
 
 test("mouse movement is batched rather than rendering for every event", async ({

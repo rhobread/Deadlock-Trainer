@@ -42,6 +42,22 @@ test("missing state returns independent settings, bindings, and history", () => 
   assert.deepEqual(second.history, []);
 });
 
+test("basic modes persist alongside existing 3D modes and their session history", () => {
+  assert.equal(DEFAULT_SETTINGS.mode, "basic-keys");
+  for (const mode of [
+    "basic-keys",
+    "basic-aim",
+    "basic-mixed",
+    "recall",
+    "aim",
+    "mixed",
+  ] as const) {
+    const saved = load({ settings: { mode }, history: [{ ...result, mode }] });
+    assert.equal(saved.settings.mode, mode);
+    assert.equal(saved.history[0]?.mode, mode);
+  }
+});
+
 test("blocked storage and unavailable localStorage return temporary defaults", () => {
   for (const storage of [
     null,

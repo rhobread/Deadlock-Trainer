@@ -1,7 +1,13 @@
 import { ACTIONS, keyFromEvent, type Action } from "./trainer";
 import { SCENARIOS } from "./drills";
 
-export type Mode = "recall" | "aim" | "mixed";
+export type Mode =
+  | "basic-keys"
+  | "basic-aim"
+  | "basic-mixed"
+  | "recall"
+  | "aim"
+  | "mixed";
 export type Difficulty = "rookie" | "regular" | "sharp";
 export type Settings = {
   mode: Mode;
@@ -25,7 +31,7 @@ export type Result = {
 
 export const STORAGE_KEY = "deadlock-trainer-v1";
 export const DEFAULT_SETTINGS: Settings = {
-  mode: "recall",
+  mode: "basic-keys",
   difficulty: "rookie",
   duration: 60,
   hints: true,
@@ -41,7 +47,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isMode(value: unknown): value is Mode {
-  return value === "recall" || value === "aim" || value === "mixed";
+  return (
+    typeof value === "string" &&
+    [
+      "basic-keys",
+      "basic-aim",
+      "basic-mixed",
+      "recall",
+      "aim",
+      "mixed",
+    ].includes(value)
+  );
 }
 
 export function trainableBinding(value: unknown): value is string {

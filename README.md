@@ -2,6 +2,8 @@
 
 A standalone warm-up room for new Deadlock players. Practice physical key recall, held melee, overlapping movement/crouch/zoom/fire, and independent releases in an original third-person practice range.
 
+The original lightweight practice is also available under **Basic Manual**: single key prompts, plain 2D click targets, and alternating key/click practice. The newer 3D modes remain available separately under **3D Training**.
+
 This can help input familiarity and hand coordination. It is not evidence that your in-game aim or combat will improve, and it does not replace Deadlock's sandbox. The range uses original primitive geometry and a combat-oriented HUD, not a copy of the game's map, hero assets, or engine.
 
 Unofficial fan project. Not affiliated with Valve. This app never connects to Deadlock, changes game files, or automates gameplay.
@@ -28,7 +30,7 @@ npm run dev
 
 ## How to Practice
 
-1. Pick a mode from the left sidebar. On small screens, use the three mode icons at the top.
+1. Pick a mode from **Basic Manual** or **3D Training** in the sidebar. On small screens, the two labeled groups of mode icons appear at the top.
 2. Choose a 30, 60, or 120 second session and a difficulty.
 3. For key practice, select all keys or a smaller group such as abilities or movement. Leave **Training wheels** enabled to see the expected key; turn it off when you feel comfortable.
 4. Click **Start training**. Follow the objective: tap, continuously hold, release one control while keeping others down, or fire at the target. The **HELD NOW** HUD shows what is actually down. Sequential taps do not pass a simultaneous hold. Misses, interrupted relevant holds, and timed-out prompts count against accuracy.
@@ -37,13 +39,28 @@ npm run dev
 
 ### Modes
 
-| Mode           | What you practice                                                                                                 |
-| -------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Keybind recall | Physical key recall for movement, combat, abilities, and active items.                                            |
-| Soul practice  | Acquire rising souls in the third-person practice lane.                                                           |
-| Combat range   | Held/chord/tap/release drills, directional dash-jumps, dash-slide sequences, and combined movement/mouse actions. |
+| Mode                 | What you practice                                                                                                 |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Basic keybinds       | The original single-action prompts. Press the shown keyboard or mouse button.                                     |
+| Basic click targets  | Stationary 2D targets. One left click per target; no weapon or camera controls.                                   |
+| Basic mixed practice | Alternate a key prompt and a left-click target, one input at a time.                                              |
+| Keybind recall       | Physical key recall for movement, combat, abilities, and active items.                                            |
+| Soul practice        | Acquire rising souls in the third-person practice lane.                                                           |
+| Combat range         | Held/chord/tap/release drills, directional dash-jumps, dash-slide sequences, and combined movement/mouse actions. |
 
 Rookie gives you larger targets and longer response windows. Regular and Sharpshooter progressively reduce target size and available time. Accuracy comes before speed.
+
+### Basic Manual
+
+Start here to learn the buttons before practising more complicated game situations:
+
+- **Basic keybinds:** keep Training wheels on to see the expected key, or hide hints to test recall. Practice all inputs or focus on movement, combat, abilities, or items.
+- **Basic click targets:** point at the glowing target and left-click. Targets do not move, held clicks do not auto-fire, and there is no ammo limit or reload requirement.
+- **Basic mixed practice:** answer a key prompt, click a target, then repeat. This is simple alternating practice, not a simultaneous-input or hold drill.
+
+All three use the familiar 30/60/120-second sessions, scoring, and Escape pause. They share your saved bindings but keep their recent results separate from the 3D modes. Left-click targeting is deliberately independent of the game's fire binding.
+
+**No 3D renderer is downloaded or initialized for Basic Manual.** The scene and its graphics dependency load only when you explicitly start a 3D mode. Returning to Basic Manual disposes the active 3D scene. Fresh browser profiles start in Basic keybinds; existing saved mode selections, bindings, and session summaries are preserved.
 
 ### Camera and Combat HUD
 
@@ -63,7 +80,7 @@ The range does **not** reproduce exact Deadlock camera offsets, sensitivity, ani
 
 ### Combat Drills
 
-Choose **Combat range** (the third mode), then select a drill or rotate through all twelve:
+Choose **Combat range** under **3D Training**, then select a drill or rotate through all twelve:
 
 | Situation                    | Input rehearsal                                                                                                                                    |
 | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
