@@ -1,5 +1,9 @@
 # Deadlock Trainer
 
+## Shared Instructions
+
+Read `../AGENTS.md` at the Personal Projects workspace root first. It contains standing read access, key/privacy rules, Git publishing defaults, and server information. Follow those shared rules together with this project's game-safety boundaries.
+
 A standalone browser warm-up app for new Deadlock players. Train physical key recall, mouse target acquisition, and mixed inputs. This is an unofficial fan project, not a game integration or cheat.
 
 ## Stack and Commands
@@ -12,7 +16,7 @@ A standalone browser warm-up app for new Deadlock players. Train physical key re
 ## Permissions and Boundaries
 
 - Edit project files and run local build/test tooling as needed.
-- The user explicitly authorized committing and pushing the app, requested improvements, README, and access guidance to `https://github.com/rhobread/Deadlock-Trainer`. Stage only public-safe project files. Future unrelated tasks still need their own current Git instructions.
+- Repository: `https://github.com/rhobread/Deadlock-Trainer`. Commit/push completed, validated requested changes according to the shared root policy. Stage only public-safe project files; publication does not expand the requested implementation scope.
 - Steam and Deadlock folders are strictly READ-ONLY. Never modify configs, install mods, inject input, attach to the game, read process memory, or automate gameplay.
 - Do not commit Steam files, account identifiers, absolute personal paths, credentials, or tokens. Only general key mappings belong in the app.
 - Imports are user-selected text files parsed locally in the browser. Never upload their contents.
@@ -20,7 +24,7 @@ A standalone browser warm-up app for new Deadlock players. Train physical key re
 ## Authorized Paths
 
 - The repository root and its source, tests, dependencies, and generated build/test folders are the project work area. Local build and test tooling is authorized; do not repeatedly ask to perform ordinary work already within this scope.
-- Read `AGENTS.local.md` when present for this machine's project and Steam paths. That file and `.kilo/kilo.json` are intentionally ignored by Git; never force-add them or repeat their personal paths in tracked files.
+- Read `AGENTS.local.md` only when the current task actually needs this machine's Steam paths. It is not needed for routine app deployment or ordinary UI work. That file and `.kilo/kilo.json` are intentionally ignored by Git; never force-add them or repeat their personal paths in tracked files.
 - Steam references are limited to locating the game through `steamapps/libraryfolders.vdf`, inspecting Deadlock's `steamapps/common/Deadlock/game/citadel/cfg/` controls, and reading `userdata/<user-folder>/1422450/remote/cfg/citadelkeys_personal.lst` when needed for bindings. Do not inspect unrelated Steam account/session data.
 - Steam and Deadlock remain read-only even when a tool grants access to their directories. No writes, deletes, renames, permissions changes, or game/process automation are authorized there.
 - Agent instructions record user authorization, not an approval bypass. Honor runtime sandbox, editor, and tool approvals; do not disable safeguards or add broad shell allowances to suppress prompts. Machine-local Kilo rules may pre-approve the listed read-only references, but do not override higher-priority restrictions or one-shot Git approvals.
@@ -40,3 +44,10 @@ A standalone browser warm-up app for new Deadlock players. Train physical key re
 - Escape pauses; leaving the page pauses automatically. No global keyboard listeners outside active practice or explicit rebinding.
 - Validate with unit tests, a production build, and browser interaction tests before delivery.
 - Software-rendered 3D browser tests can contend with video playback. Keep the default single browser worker, run builds and browser suites serially, and use targeted lightweight checks for small fixes rather than repeatedly launching the full 3D matrix while the user is working.
+
+## Hosted Release
+
+- Live app: `https://rhobread.com/Deadlock-Trainer/`, with an exact case-sensitive `/Deadlock-Trainer/` Vite base.
+- Build production output locally; deploy only the compiled release to `/var/www/rhobread/Deadlock-Trainer`, following the shared root backup/verification rules. No backend service is required.
+- The sibling website repository provides `scripts/build-deadlock-trainer.cjs` for type-checking, prefix-aware temporary builds, and license notices. Use it if available, or reproduce its fixed base path and public-only output.
+- Do not copy source or `node_modules` into the portfolio repository or server web root. Update the standalone app release independently; portfolio navigation only links to it.
